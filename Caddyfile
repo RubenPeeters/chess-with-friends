@@ -1,0 +1,35 @@
+{
+	admin off
+	# Remove this block and set a real email for HTTPS on a VPS:
+	# email you@example.com
+}
+
+:80 {
+	# WebSocket game connections — path-based routing.
+	# Caddy's reverse_proxy detects the Upgrade header and proxies WS automatically.
+	handle /ws* {
+		reverse_proxy game:4000
+	}
+
+	# Social service routes
+	# flush_interval -1 enables streaming mode, required for SSE (invite watch).
+	handle /api/social/* {
+		uri strip_prefix /api/social
+		reverse_proxy social:3001 {
+			flush_interval -1
+		}
+	}
+
+	# Auth + general API routes
+	handle /api/* {
+		uri strip_prefix /api
+		reverse_proxy api:3000
+	}
+
+	# Fallback — serve frontend build (mount dist/ as a volume in prod)
+	handle {
+		root * /srv
+		try_files {path} /index.html
+		file_server
+	}
+}

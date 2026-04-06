@@ -1,0 +1,28 @@
+# Environment
+.env
+.env.local
+
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+build/
+.vite/
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker volumes (local dev overrides)
+postgres_data/
+redis_data/
+
+# Editor
+.vscode/
+.idea/
+*.swp
