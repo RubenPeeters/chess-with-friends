@@ -1,101 +1,89 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 
 /**
- * Evaluates chess positions using Stockfish running as a Web Worker.
- * Returns evaluation normalised to white's perspective (positive = white better).
+ * Runs Stockfish as a Web Worker and exposes a simple analyze(fen) API.
+ * Evaluation is always normalised to white's perspective (positive = white better).
  *
- * Requires /stockfish.js to be present in the public folder.
- * vite.config.js copies it from node_modules/stockfish/src/stockfish.js automatically.
+ * Requires /stockfish.js in the public folder.
+ * vite.config.js copies it from node_modules automatically.
  */
 export function useStockfish() {
   const workerRef  = useRef(null);
-  const readyRef   = useRef(false);
-  const pendingRef = useRef(null); // fen queued before worker was ready
+  const fenTurnRef = useRef('w'); // separate ref — Worker objects don't support custom props
 
   const [ready,      setReady]      = useState(false);
   const [evaluation, setEvaluation] = useState(null);
-  // evaluation: { cp: number|null, mate: number|null, depth: number }
-  // cp is always from WHITE's perspective
 
   useEffect(() => {
     let worker;
     try {
       worker = new Worker('/stockfish.js');
-    } catch {
-      console.warn('[Stockfish] Could not load /stockfish.js');
+    } catch (e) {
+      console.warn('[Stockfish] Could not load /stockfish.js — does the file exist in public/?', e);
       return;
     }
     workerRef.current = worker;
 
-    worker.onmessage = (e) => {
-      const line = typeof e.data === 'string' ? e.data : String(e.data);
+    worker.onerror = (e) => console.error('[Stockfish] Worker error:', e);
 
-      if (line === 'readyok') {
-        readyRef.current = true;
-        setReady(true);
-        if (pendingRef.current) {
-          _send(`position fen ${pendingRef.current.fen}`);
-          _send(`go depth 18`);
-          pendingRef.current = null;
-        }
+    worker.onmessage = (e) => {
+      const line = typeof e.data === 'string' ? e.data : String(e.data ?? '');
+
+      // Step 2 of UCI handshake: engine identified itself, now ask if ready
+      if (line === 'uciok') {
+        worker.postMessage('isready');
         return;
       }
 
-      // Parse eval lines: "info depth N ... score cp X ..." or "... score mate X ..."
+      // Step 3: engine is ready
+      if (line === 'readyok') {
+        setReady(true);
+        return;
+      }
+
+      // Parse evaluation lines
       if (!line.startsWith('info')) return;
       const depthM = line.match(/\bdepth (\d+)/);
       if (!depthM) return;
       const depth = parseInt(depthM[1], 10);
+      if (depth < 4) return; // skip noise from very shallow depths
 
-      // Determine whose turn it was (stored alongside each analysis request)
-      const fenTurn = workerRef.current._fenTurn ?? 'w';
-
-      const cpM   = line.match(/\bscore cp (-?\d+)/);
-      const mateM = line.match(/\bscore mate (-?\d+)/);
+      const turn   = fenTurnRef.current;
+      const cpM    = line.match(/\bscore cp (-?\d+)/);
+      const mateM  = line.match(/\bscore mate (-?\d+)/);
 
       if (cpM) {
-        // Normalise: Stockfish always reports from side-to-move's perspective
-        const rawCp = parseInt(cpM[1], 10);
-        const cp    = fenTurn === 'b' ? -rawCp : rawCp;
-        setEvaluation({ cp, mate: null, depth });
+        const raw = parseInt(cpM[1], 10);
+        // Stockfish reports from side-to-move's perspective — normalise to white's
+        setEvaluation({ cp: turn === 'b' ? -raw : raw, mate: null, depth });
       } else if (mateM) {
-        const rawMate = parseInt(mateM[1], 10);
-        const mate    = fenTurn === 'b' ? -rawMate : rawMate;
-        setEvaluation({ cp: null, mate, depth });
+        const raw = parseInt(mateM[1], 10);
+        setEvaluation({ cp: null, mate: turn === 'b' ? -raw : raw, depth });
       }
     };
 
-    worker.onerror = (err) => console.warn('[Stockfish] Worker error:', err);
-
-    function _send(msg) { worker.postMessage(msg); }
-
+    // Step 1 of UCI handshake
     worker.postMessage('uci');
-    worker.postMessage('isready');
 
     return () => {
-      worker.postMessage('quit');
+      try { worker.postMessage('quit'); } catch {}
       worker.terminate();
       workerRef.current = null;
-      readyRef.current  = false;
     };
   }, []);
 
   const analyze = useCallback((fen) => {
-    if (!workerRef.current) return;
+    const worker = workerRef.current;
+    if (!worker || !ready) return;
+
+    fenTurnRef.current = fen.split(' ')[1] ?? 'w';
     setEvaluation(null);
 
-    const turn = fen.split(' ')[1] ?? 'w';
-    workerRef.current._fenTurn = turn;
-
-    if (!readyRef.current) {
-      pendingRef.current = { fen };
-      return;
-    }
-
-    workerRef.current.postMessage('stop');
-    workerRef.current.postMessage(`position fen ${fen}`);
-    workerRef.current.postMessage('go depth 18');
-  }, []);
+    worker.postMessage('stop');
+    worker.postMessage('ucinewgame');
+    worker.postMessage(`position fen ${fen}`);
+    worker.postMessage('go depth 18');
+  }, [ready]);
 
   return { analyze, evaluation, ready };
 }
