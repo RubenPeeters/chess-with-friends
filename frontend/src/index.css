@@ -1,0 +1,116 @@
+@import "tailwindcss";
+
+/* ── Design tokens → Tailwind theme ─────────────────────────────────────────
+   In Tailwind v4 these map directly to utility classes:
+   --color-primary   → bg-primary, text-primary, border-primary …
+   --font-display    → font-display
+   --shadow-raised   → shadow-raised
+   --radius-md       → rounded-md (overrides Tailwind default)             */
+@theme {
+  /* Typography */
+  --font-display: 'Manrope', sans-serif;
+  --font-mono:    'IBM Plex Mono', monospace;
+  --font-body:    'Inter', sans-serif;
+
+  /* Brand */
+  --color-primary:        #005ab7;
+  --color-primary-end:    #0072e5;
+  --color-on-primary:     #ffffff;
+
+  /* Surfaces — light tonal stack */
+  --color-surface-lowest:   #ffffff;
+  --color-surface:          #f5f7fb;
+  --color-surface-low:      #eef1f6;
+  --color-surface-high:     #e4e8ee;
+  --color-surface-highest:  #d8dce4;
+
+  /* Text */
+  --color-on-surface:     #191c1e;
+  --color-muted:          #5a6270;
+
+  /* Accents */
+  --color-secondary-fixed: #d9e4eb;
+  --color-danger:          #b91c1c;
+  --color-danger-bg:       #fee2e2;
+  --color-success:         #15803d;
+  --color-success-bg:      #dcfce7;
+
+  /* Shadows */
+  --shadow-ambient: 0 8px 32px rgba(25, 28, 30, 0.04);
+  --shadow-raised:  0 12px 40px rgba(25, 28, 30, 0.08);
+  --shadow-float:   0 8px 40px rgba(25, 28, 30, 0.08);
+
+  /* Border radius */
+  --radius-sm: 0.5rem;
+  --radius-md: 0.75rem;
+  --radius-xl: 3rem;
+}
+
+/* ── Base reset ──────────────────────────────────────────────────────────── */
+@layer base {
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body, #root { height: 100%; }
+
+  body {
+    font-family: var(--font-body);
+    line-height: 1.5;
+    background-color: var(--color-surface);
+    color: var(--color-on-surface);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 3px;
+  }
+
+  input:focus, select:focus {
+    outline: none;
+    box-shadow: inset 0 0 0 2px var(--color-primary);
+  }
+}
+
+/* ── Custom utilities ────────────────────────────────────────────────────── */
+/* In Tailwind v4, @utility registers classes usable in JSX and with @apply  */
+@utility bg-primary-gradient {
+  background: linear-gradient(135deg, #005ab7, #0072e5);
+}
+
+@utility nums-tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Shared button components ────────────────────────────────────────────── */
+@layer components {
+  .btn-primary {
+    @apply font-display font-bold text-[0.9375rem] text-on-primary bg-primary-gradient
+           py-3 px-6 rounded-[3rem] border-0 cursor-pointer tracking-tight
+           transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-secondary {
+    @apply font-body font-semibold text-[0.875rem] text-on-surface bg-surface-high
+           py-2 px-4 rounded-[3rem] border-0 cursor-pointer
+           transition-opacity hover:opacity-70 disabled:opacity-40;
+  }
+
+  .btn-ghost {
+    @apply font-body font-medium text-sm text-primary bg-transparent border-0
+           cursor-pointer underline underline-offset-[3px]
+           hover:opacity-70 transition-opacity;
+  }
+
+  .field-label {
+    @apply font-body text-xs font-semibold uppercase tracking-[0.04em] text-muted;
+  }
+
+  .text-input {
+    @apply font-body text-[0.9375rem] bg-surface-low rounded-xl border-0
+           px-3.5 py-3 text-on-surface w-full transition-shadow;
+  }
+
+  .card {
+    @apply bg-surface-lowest rounded-md shadow-raised p-8;
+  }
+}
