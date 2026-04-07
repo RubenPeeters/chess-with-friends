@@ -25,7 +25,7 @@ function getInviteTokenFromUrl() {
 // ── App ───────────────────────────────────────────────────────────────────────
 
 export default function App() {
-  const [token, setToken]               = useState(() => localStorage.getItem('cwf_token'));
+  const [token, setToken]               = useState(() => localStorage.getItem('ff_token'));
   const [gameId, setGameId]             = useState(null);
   const [playerColour, setPlayerColour] = useState('white');
 
@@ -83,7 +83,7 @@ export default function App() {
         authMode === 'login' ? '/api/auth/login' : '/api/auth/register',
         { method: 'POST', body: JSON.stringify(body) }
       );
-      localStorage.setItem('cwf_token', data.token);
+      localStorage.setItem('ff_token', data.token);
       setToken(data.token);
       if (pendingInviteToken) await acceptInvite(pendingInviteToken, data.token);
     } catch (err) {
@@ -101,7 +101,7 @@ export default function App() {
   }
 
   function handleLogout() {
-    localStorage.removeItem('cwf_token');
+    localStorage.removeItem('ff_token');
     setToken(null); setGameId(null); setCreatedInvite(null);
     setJoinInput(''); setAuthForm({ email: '', password: '', displayName: '' });
     setAuthMode('login'); setLobbyTab('play');
@@ -197,17 +197,17 @@ export default function App() {
       <div className="min-h-screen bg-surface flex">
         {/* Left — branding panel */}
         <div className="hidden lg:flex flex-col justify-between w-[460px] shrink-0 bg-primary px-12 py-16">
-          <span className="font-display font-extrabold text-xl tracking-[-0.02em] text-on-primary/90">CWF</span>
+          <span className="font-display font-extrabold text-xl tracking-[-0.02em] text-on-primary/90">FF</span>
           <div>
             <div className="text-5xl mb-8 select-none">♟</div>
             <h1 className="font-display text-[3.5rem] font-extrabold leading-[1.05] tracking-[-0.03em] text-on-primary">
-              Chess<br />with<br />Friends.
+              Fianchetto<br />Friends.
             </h1>
             <p className="mt-5 font-body text-base text-on-primary/70 leading-relaxed max-w-xs">
               Play with friends, track your Glicko-2 rating, and climb the leaderboard.
             </p>
           </div>
-          <p className="font-mono text-[0.65rem] text-on-primary/30 tracking-wide">© 2026 Chess with Friends</p>
+          <p className="font-mono text-[0.65rem] text-on-primary/30 tracking-wide">© 2026 Fianchetto Friends</p>
         </div>
 
         {/* Right — form */}
@@ -216,7 +216,7 @@ export default function App() {
             {/* Mobile logo */}
             <div className="lg:hidden mb-10 flex items-center gap-2">
               <span className="text-3xl select-none">♟</span>
-              <span className="font-display font-extrabold text-2xl tracking-[-0.02em] text-primary">Chess with Friends</span>
+              <span className="font-display font-extrabold text-2xl tracking-[-0.02em] text-primary">Fianchetto Friends</span>
             </div>
 
             <h2 className="font-display font-extrabold text-[1.75rem] text-on-surface mb-1 tracking-[-0.02em]">
@@ -293,7 +293,7 @@ export default function App() {
           {/* Brand */}
           <div className="px-6 py-5 border-b border-surface-high flex items-center gap-2">
             <span className="text-xl select-none">♟</span>
-            <span className="font-display font-extrabold text-base tracking-[-0.02em] text-on-surface">Chess with Friends</span>
+            <span className="font-display font-extrabold text-base tracking-[-0.02em] text-on-surface">Fianchetto Friends</span>
           </div>
           {/* Profile */}
           <div className="flex-1 overflow-y-auto">
@@ -460,7 +460,7 @@ export default function App() {
       <header className="flex items-center justify-between px-6 py-4 bg-white border-b border-surface-high">
         <div className="flex items-center gap-2">
           <span className="text-lg select-none">♟</span>
-          <span className="font-display font-bold text-base text-on-surface tracking-[-0.01em]">Chess with Friends</span>
+          <span className="font-display font-bold text-base text-on-surface tracking-[-0.01em]">Fianchetto Friends</span>
         </div>
         <div className="flex items-center gap-3">
           <button
