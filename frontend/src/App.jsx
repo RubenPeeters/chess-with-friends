@@ -1,7 +1,11 @@
 import { useState, useEffect } from 'react';
 import { Board } from './components/Board.jsx';
 import { Clock } from './components/Clock.jsx';
+import { ProfilePanel } from './components/ProfilePanel.jsx';
+import { HistoryPanel } from './components/HistoryPanel.jsx';
+import { FriendsPanel } from './components/FriendsPanel.jsx';
 import { useGameSocket } from './hooks/useGameSocket.js';
+import { apiFetch } from './api.js';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -14,61 +18,53 @@ function parseJwt(token) {
   }
 }
 
-async function apiFetch(path, { token, ...opts } = {}) {
-  const res = await fetch(path, {
-    ...opts,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...opts.headers,
-    },
-  });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error ?? `Request failed (${res.status})`);
-  return data;
-}
-
-// ── App ───────────────────────────────────────────────────────────────────────
-
 /** Extract invite token from /play/:token URL paths. */
 function getInviteTokenFromUrl() {
   const match = window.location.pathname.match(/^\/play\/([0-9a-f-]{36})$/i);
   return match ? match[1] : null;
 }
 
+// ── App ───────────────────────────────────────────────────────────────────────
+
 export default function App() {
-  const [token, setToken]       = useState(() => localStorage.getItem('cwf_token'));
-  const [gameId, setGameId]     = useState(null);
+  const [token, setToken]         = useState(() => localStorage.getItem('cwf_token'));
+  const [gameId, setGameId]       = useState(null);
   const [playerColour, setPlayerColour] = useState('white');
 
   // Auth
-  const [authMode, setAuthMode] = useState('login'); // 'login' | 'register'
-  const [authForm, setAuthForm] = useState({ email: '', password: '', displayName: '' });
+  const [authMode, setAuthMode]   = useState('login'); // 'login' | 'register'
+  const [authForm, setAuthForm]   = useState({ email: '', password: '', displayName: '' });
   const [authError, setAuthError] = useState('');
   const [authLoading, setAuthLoading] = useState(false);
 
-  // Invite token found in the URL (e.g. someone opened a /play/:token link)
+  // Invite token found in URL (e.g. someone opened a /play/:token link)
   const [pendingInviteToken] = useState(() => getInviteTokenFromUrl());
 
-  // Lobby
-  const [lobbyError, setLobbyError]   = useState('');
-  const [createdInvite, setCreatedInvite] = useState(null); // { token, time_control, invite_path }
-  // Pre-fill join input if user landed on an invite URL
-  const [joinInput, setJoinInput]     = useState(() => getInviteTokenFromUrl() ?? '');
-  const [timeControl, setTimeControl] = useState('10+0');
+  // Lobby tab
+  const [lobbyTab, setLobbyTab]   = useState('play'); // 'play' | 'history' | 'friends'
+
+  // Lobby — play tab
+  const [lobbyError, setLobbyError]     = useState('');
+  const [createdInvite, setCreatedInvite] = useState(null);
+  const [joinInput, setJoinInput]       = useState(() => getInviteTokenFromUrl() ?? '');
+  const [timeControl, setTimeControl]   = useState('10+0');
   const [creatingInvite, setCreatingInvite] = useState(false);
-  const [joiningGame, setJoiningGame] = useState(false);
-  const [copied, setCopied]           = useState(false);
+  const [joiningGame, setJoiningGame]   = useState(false);
+  const [copied, setCopied]             = useState(false);
 
   const { gameState, sendMove, sendResign, sendDrawOffer, connected } =
     useGameSocket(gameId, token);
+
+  // Derive user info from JWT
+  const jwtPayload = token ? parseJwt(token) : null;
+  const user = jwtPayload
+    ? { id: jwtPayload.sub, email: jwtPayload.email, display_name: jwtPayload.display_name ?? jwtPayload.email?.split('@')[0] }
+    : null;
 
   // Already logged in + landed on /play/:token → accept immediately
   useEffect(() => {
     if (token && pendingInviteToken && !gameId) {
       acceptInvite(pendingInviteToken).catch(() => {
-        // Accept failed (expired, own invite, etc.) — clear the path so a
-        // refresh doesn't retry, and let the lobby show the error normally.
         window.history.replaceState(null, '', '/');
       });
     }
@@ -93,7 +89,6 @@ export default function App() {
       localStorage.setItem('cwf_token', data.token);
       setToken(data.token);
 
-      // If the user landed via an invite link, accept it straight after auth
       if (pendingInviteToken) {
         await acceptInvite(pendingInviteToken, data.token);
       }
@@ -112,7 +107,6 @@ export default function App() {
     });
     const userId = parseJwt(jwt)?.sub;
     const colour = data.white_id === userId ? 'white' : 'black';
-    // Clean up the /play/:token URL so a refresh doesn't re-trigger acceptance
     window.history.replaceState(null, '', '/');
     setPlayerColour(colour);
     setGameId(data.game_id);
@@ -127,6 +121,7 @@ export default function App() {
     setJoinInput('');
     setAuthForm({ email: '', password: '', displayName: '' });
     setAuthMode('login');
+    setLobbyTab('play');
   }
 
   function switchAuthMode(mode) {
@@ -161,15 +156,12 @@ export default function App() {
     const uuidRe = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     try {
       if (!uuidRe.test(input)) throw new Error('Enter a valid invite token or game ID (UUID format)');
-
-      // Try accepting as an invite first; fall back to joining as a direct game ID.
       try {
         await acceptInvite(input);
       } catch (inviteErr) {
         if (!inviteErr.message.includes('not found') && !inviteErr.message.includes('already used')) {
           throw inviteErr;
         }
-        // Treat the UUID as a direct game ID — server determines colour on rejoin
         setPlayerColour('white');
         setGameId(input);
         setCreatedInvite(null);
@@ -189,7 +181,7 @@ export default function App() {
     const es = new EventSource(url);
 
     es.addEventListener('accepted', (e) => {
-      const { game_id, white_id, black_id } = JSON.parse(e.data);
+      const { game_id, white_id } = JSON.parse(e.data);
       const userId = parseJwt(token)?.sub;
       const colour = white_id === userId ? 'white' : 'black';
       setPlayerColour(colour);
@@ -198,8 +190,7 @@ export default function App() {
       es.close();
     });
 
-    es.onerror = () => es.close(); // expired or network error — silently stop
-
+    es.onerror = () => es.close();
     return () => es.close();
   }, [createdInvite?.token, token]);
 
@@ -226,18 +217,11 @@ export default function App() {
 
         <div style={s.authRight}>
           <div style={s.card}>
-            {/* Tab toggle */}
             <div style={s.tabRow}>
-              <button
-                style={s.tab(authMode === 'login')}
-                onClick={() => switchAuthMode('login')}
-              >
+              <button style={s.tab(authMode === 'login')} onClick={() => switchAuthMode('login')}>
                 Sign in
               </button>
-              <button
-                style={s.tab(authMode === 'register')}
-                onClick={() => switchAuthMode('register')}
-              >
+              <button style={s.tab(authMode === 'register')} onClick={() => switchAuthMode('register')}>
                 Create account
               </button>
             </div>
@@ -292,85 +276,108 @@ export default function App() {
   /* Lobby screen */
   if (!gameId) {
     return (
-      <div style={s.authShell}>
-        <div style={s.authLeft}>
-          <span style={s.eyebrow}>Ready to play</span>
-          <h1 style={s.displayLg}>Start or<br />join a<br />game.</h1>
+      <div style={s.lobbyShell}>
+        {/* Left column — profile */}
+        <div style={s.lobbyLeft}>
+          <div style={s.brandMarkLobby}>CWF</div>
+          <div style={s.profileCard}>
+            <ProfilePanel token={token} user={user} onLogout={handleLogout} />
+          </div>
         </div>
 
-        <div style={s.authRight}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', width: 360 }}>
+        {/* Right panel — tabbed */}
+        <div style={s.lobbyRight}>
+          {/* Tab bar */}
+          <div style={s.tabBar}>
+            {['play', 'history', 'friends'].map((tab) => (
+              <button
+                key={tab}
+                style={s.tabBarBtn(lobbyTab === tab)}
+                onClick={() => setLobbyTab(tab)}
+              >
+                {tab === 'play' ? 'Play' : tab === 'history' ? 'History' : 'Friends'}
+              </button>
+            ))}
+          </div>
 
-            {/* Create invite card */}
-            <div style={s.card}>
-              <h2 style={s.cardHeading}>Create a game</h2>
-              <div style={s.form}>
-                <label style={s.fieldLabel}>Time control</label>
-                <select
-                  style={s.input}
-                  value={timeControl}
-                  onChange={(e) => setTimeControl(e.target.value)}
-                >
-                  <option value="1+0">Bullet — 1 min</option>
-                  <option value="3+0">Blitz — 3 min</option>
-                  <option value="3+2">Blitz — 3 min + 2 sec</option>
-                  <option value="5+0">Blitz — 5 min</option>
-                  <option value="10+0">Rapid — 10 min</option>
-                  <option value="15+10">Rapid — 15 min + 10 sec</option>
-                  <option value="30+0">Classical — 30 min</option>
-                </select>
-
-                {createdInvite ? (
-                  /* Show invite link after creation */
-                  <div style={s.inviteBox}>
-                    <span style={s.inviteLabel}>Share this link with your opponent</span>
-                    <div style={s.inviteLinkRow}>
-                      <span style={s.inviteToken}>{createdInvite.token}</span>
-                      <button style={s.copyBtn} onClick={handleCopyLink}>
-                        {copied ? 'Copied!' : 'Copy'}
-                      </button>
-                    </div>
-                    <button
-                      style={{ ...s.btnTertiary, marginTop: '0.5rem' }}
-                      onClick={() => setCreatedInvite(null)}
+          {/* Tab content */}
+          <div style={s.tabContent}>
+            {lobbyTab === 'play' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                {/* Create invite card */}
+                <div style={s.card}>
+                  <h2 style={s.cardHeading}>Create a game</h2>
+                  <div style={s.form}>
+                    <label style={s.fieldLabel}>Time control</label>
+                    <select
+                      style={s.input}
+                      value={timeControl}
+                      onChange={(e) => setTimeControl(e.target.value)}
                     >
-                      Create another
-                    </button>
+                      <option value="1+0">Bullet — 1 min</option>
+                      <option value="3+0">Blitz — 3 min</option>
+                      <option value="3+2">Blitz — 3 min + 2 sec</option>
+                      <option value="5+0">Blitz — 5 min</option>
+                      <option value="10+0">Rapid — 10 min</option>
+                      <option value="15+10">Rapid — 15 min + 10 sec</option>
+                      <option value="30+0">Classical — 30 min</option>
+                    </select>
+
+                    {createdInvite ? (
+                      <div style={s.inviteBox}>
+                        <span style={s.inviteLabel}>Share this link with your opponent</span>
+                        <div style={s.inviteLinkRow}>
+                          <span style={s.inviteToken}>{createdInvite.token}</span>
+                          <button style={s.copyBtn} onClick={handleCopyLink}>
+                            {copied ? 'Copied!' : 'Copy'}
+                          </button>
+                        </div>
+                        <span style={{ ...s.inviteLabel, marginTop: '0.25rem' }}>
+                          Waiting for opponent to join…
+                        </span>
+                        <button
+                          style={{ ...s.btnTertiary, marginTop: '0.25rem' }}
+                          onClick={() => setCreatedInvite(null)}
+                        >
+                          Create another
+                        </button>
+                      </div>
+                    ) : (
+                      <button style={s.btnPrimary} onClick={handleCreateInvite} disabled={creatingInvite}>
+                        {creatingInvite ? 'Creating…' : 'Generate invite link'}
+                      </button>
+                    )}
                   </div>
-                ) : (
-                  <button
-                    style={s.btnPrimary}
-                    onClick={handleCreateInvite}
-                    disabled={creatingInvite}
-                  >
-                    {creatingInvite ? 'Creating…' : 'Generate invite link'}
-                  </button>
-                )}
+                </div>
+
+                {/* Join card */}
+                <div style={s.card}>
+                  <h2 style={s.cardHeading}>Join a game</h2>
+                  <form onSubmit={handleJoin} style={s.form}>
+                    <label style={s.fieldLabel}>Invite token or game ID</label>
+                    <input
+                      style={{ ...s.input, fontFamily: 'var(--font-mono)', fontSize: '0.8rem' }}
+                      placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+                      value={joinInput}
+                      onChange={(e) => setJoinInput(e.target.value)}
+                      required
+                    />
+                    {lobbyError && <p style={s.errorMsg}>{lobbyError}</p>}
+                    <button style={s.btnPrimary} type="submit" disabled={joiningGame}>
+                      {joiningGame ? 'Joining…' : 'Join'}
+                    </button>
+                  </form>
+                </div>
               </div>
-            </div>
+            )}
 
-            {/* Join card */}
-            <div style={s.card}>
-              <h2 style={s.cardHeading}>Join a game</h2>
-              <form onSubmit={handleJoin} style={s.form}>
-                <label style={s.fieldLabel}>Invite token or game ID</label>
-                <input
-                  style={{ ...s.input, fontFamily: 'var(--font-mono)', fontSize: '0.8rem' }}
-                  placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-                  value={joinInput}
-                  onChange={(e) => setJoinInput(e.target.value)}
-                  required
-                />
-                {lobbyError && <p style={s.errorMsg}>{lobbyError}</p>}
-                <button style={s.btnPrimary} type="submit" disabled={joiningGame}>
-                  {joiningGame ? 'Joining…' : 'Join'}
-                </button>
-              </form>
-            </div>
+            {lobbyTab === 'history' && (
+              <HistoryPanel token={token} userId={user?.id} />
+            )}
 
-            <button style={{ ...s.btnTertiary, alignSelf: 'center' }} onClick={handleLogout}>
-              Sign out
-            </button>
+            {lobbyTab === 'friends' && (
+              <FriendsPanel token={token} />
+            )}
           </div>
         </div>
       </div>
@@ -445,7 +452,7 @@ export default function App() {
               {gameOver.result === 'draw' ? 'Draw.' : `${gameOver.result} wins.`}
             </h2>
             <p style={s.glassSub}>{gameOver.reason?.replace(/_/g, ' ')}</p>
-            <button style={s.btnPrimary} onClick={() => setGameId(null)}>
+            <button style={s.btnPrimary} onClick={() => { setGameId(null); setLobbyTab('history'); }}>
               Back to lobby
             </button>
           </div>
@@ -457,6 +464,7 @@ export default function App() {
 
 // ── Styles ────────────────────────────────────────────────────────────────────
 const s = {
+  // ── Auth ──────────────────────────────────────────────────────────────────
   authShell: {
     display: 'grid',
     gridTemplateColumns: '1fr 1fr',
@@ -477,6 +485,69 @@ const s = {
     padding: 'var(--space-12)',
     overflowY: 'auto',
   },
+
+  // ── Lobby ─────────────────────────────────────────────────────────────────
+  lobbyShell: {
+    display: 'grid',
+    gridTemplateColumns: '280px 1fr',
+    minHeight: '100vh',
+    background: 'var(--surface)',
+  },
+  lobbyLeft: {
+    background: 'var(--surface-low)',
+    display: 'flex',
+    flexDirection: 'column',
+    padding: 'var(--space-8) var(--space-6)',
+    gap: 'var(--space-8)',
+  },
+  brandMarkLobby: {
+    fontFamily: 'var(--font-display)',
+    fontWeight: 800,
+    fontSize: '1rem',
+    letterSpacing: '-0.02em',
+    color: 'var(--primary)',
+  },
+  profileCard: {
+    background: 'var(--surface-lowest)',
+    borderRadius: 'var(--radius-md)',
+    boxShadow: 'var(--ambient-shadow-raised)',
+  },
+  lobbyRight: {
+    display: 'flex',
+    flexDirection: 'column',
+    padding: 'var(--space-8)',
+    gap: 'var(--space-6)',
+    overflowY: 'auto',
+  },
+
+  // Tab bar (lobby)
+  tabBar: {
+    display: 'flex',
+    gap: '0.25rem',
+    background: 'var(--surface-high)',
+    borderRadius: 'var(--radius-sm)',
+    padding: '0.25rem',
+    alignSelf: 'flex-start',
+  },
+  tabBarBtn: (active) => ({
+    fontFamily: 'var(--font-body)',
+    fontSize: '0.875rem',
+    fontWeight: active ? 600 : 400,
+    padding: '0.5rem 1.25rem',
+    borderRadius: '0.375rem',
+    border: 'none',
+    cursor: 'pointer',
+    background: active ? 'var(--surface-lowest)' : 'transparent',
+    color: active ? 'var(--on-surface)' : 'var(--on-surface-muted)',
+    boxShadow: active ? 'var(--ambient-shadow)' : 'none',
+    transition: 'background 0.15s, color 0.15s',
+  }),
+  tabContent: {
+    flex: 1,
+    maxWidth: 420,
+  },
+
+  // ── Shared ────────────────────────────────────────────────────────────────
   eyebrow: {
     fontFamily: 'var(--font-mono)',
     fontSize: '0.75rem',
@@ -500,10 +571,10 @@ const s = {
     padding: 'var(--space-8)',
     paddingBottom: 'calc(var(--space-8) * 1.5)',
     boxShadow: 'var(--ambient-shadow-raised)',
-    width: 360,
     display: 'flex',
     flexDirection: 'column',
     gap: 'var(--space-4)',
+    width: 360,
   },
   cardHeading: {
     fontFamily: 'var(--font-display)',
@@ -511,8 +582,6 @@ const s = {
     fontWeight: 700,
     color: 'var(--on-surface)',
   },
-
-  /* Tab toggle */
   tabRow: {
     display: 'flex',
     gap: '0.25rem',
@@ -534,7 +603,6 @@ const s = {
     boxShadow: active ? 'var(--ambient-shadow)' : 'none',
     transition: 'background 0.15s, color 0.15s',
   }),
-
   form: {
     display: 'flex',
     flexDirection: 'column',
@@ -593,7 +661,7 @@ const s = {
     alignSelf: 'flex-start',
   },
 
-  /* Invite box */
+  // Invite box
   inviteBox: {
     display: 'flex',
     flexDirection: 'column',
@@ -633,7 +701,7 @@ const s = {
     whiteSpace: 'nowrap',
   },
 
-  /* Game layout */
+  // ── Game ─────────────────────────────────────────────────────────────────
   gameShell: {
     minHeight: '100vh',
     background: 'var(--surface)',
