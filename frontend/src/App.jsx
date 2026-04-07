@@ -4,6 +4,8 @@ import { Clock } from './components/Clock.jsx';
 import { ProfilePanel } from './components/ProfilePanel.jsx';
 import { HistoryPanel } from './components/HistoryPanel.jsx';
 import { FriendsPanel } from './components/FriendsPanel.jsx';
+import { GameReview } from './components/GameReview.jsx';
+import { PlayerProfile } from './components/PlayerProfile.jsx';
 import { useGameSocket } from './hooks/useGameSocket.js';
 import { useNotifications } from './hooks/useNotifications.js';
 import { apiFetch } from './api.js';
@@ -43,6 +45,8 @@ export default function App() {
   const [joiningGame, setJoiningGame]       = useState(false);
   const [copied, setCopied]                 = useState(false);
   const [drawOfferDismissed, setDrawOfferDismissed] = useState(null);
+  const [viewingGameId, setViewingGameId]           = useState(null);
+  const [viewingPlayerId, setViewingPlayerId]       = useState(null);
 
   const { gameState, sendMove, sendResign, sendDrawOffer, sendDrawAccept, connected } =
     useGameSocket(gameId, token);
@@ -404,7 +408,12 @@ export default function App() {
             {lobbyTab === 'history' && (
               <div className="w-full max-w-md">
                 <h2 className="font-display font-bold text-lg text-on-surface mb-4">Match history</h2>
-                <HistoryPanel token={token} userId={user?.id} />
+                <HistoryPanel
+                  token={token}
+                  userId={user?.id}
+                  onViewGame={setViewingGameId}
+                  onViewProfile={setViewingPlayerId}
+                />
               </div>
             )}
 
@@ -424,6 +433,18 @@ export default function App() {
         </div>
 
         {challengeBanner}
+
+        {viewingGameId && (
+          <GameReview gameId={viewingGameId} token={token} onClose={() => setViewingGameId(null)} />
+        )}
+        {viewingPlayerId && (
+          <PlayerProfile
+            userId={viewingPlayerId}
+            token={token}
+            onClose={() => setViewingPlayerId(null)}
+            onViewGame={(id) => { setViewingPlayerId(null); setViewingGameId(id); }}
+          />
+        )}
       </div>
     );
   }
@@ -537,6 +558,18 @@ export default function App() {
       })()}
 
       {challengeBanner}
+
+      {viewingGameId && (
+        <GameReview gameId={viewingGameId} token={token} onClose={() => setViewingGameId(null)} />
+      )}
+      {viewingPlayerId && (
+        <PlayerProfile
+          userId={viewingPlayerId}
+          token={token}
+          onClose={() => setViewingPlayerId(null)}
+          onViewGame={(id) => { setViewingPlayerId(null); setViewingGameId(id); }}
+        />
+      )}
     </div>
   );
 }

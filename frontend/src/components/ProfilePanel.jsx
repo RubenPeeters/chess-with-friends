@@ -1,66 +1,93 @@
 import { useState, useEffect } from 'react';
 import { apiFetch } from '../api.js';
 
+const TYPES = ['bullet', 'blitz', 'rapid', 'classical'];
+const ICONS = { bullet: '⚡', blitz: '🔥', rapid: '⏱', classical: '♞' };
+
 export function ProfilePanel({ token, user, onLogout }) {
-  const [rating, setRating]               = useState(null);
+  const [ratings, setRatings]             = useState({});
+  const [selectedType, setSelectedType]   = useState('rapid');
   const [ratingHistory, setRatingHistory] = useState([]);
 
   useEffect(() => {
     if (!token) return;
-    apiFetch('/api/social/history/me/rating', { token }).then(setRating).catch(() => {});
-    apiFetch('/api/social/history/me/rating/history', { token }).then(setRatingHistory).catch(() => {});
+    apiFetch('/api/social/history/me/rating', { token })
+      .then(setRatings)
+      .catch(() => {});
   }, [token]);
+
+  useEffect(() => {
+    if (!token) return;
+    setRatingHistory([]);
+    apiFetch(`/api/social/history/me/rating/history?type=${selectedType}`, { token })
+      .then(setRatingHistory)
+      .catch(() => {});
+  }, [token, selectedType]);
 
   const initial     = (user?.display_name ?? user?.displayName ?? '?')[0].toUpperCase();
   const displayName = user?.display_name ?? user?.displayName ?? 'Player';
 
   return (
-    <div className="flex flex-col gap-0 p-5">
-      {/* Profile header */}
-      <div className="flex flex-col items-center gap-3 py-6 text-center">
-        {/* Avatar */}
+    <div className="flex flex-col p-5">
+
+      {/* Avatar + name */}
+      <div className="flex flex-col items-center gap-3 py-5 text-center">
         <div className="w-[68px] h-[68px] rounded-full bg-primary-gradient text-on-primary font-display font-extrabold text-[1.75rem] flex items-center justify-center shadow-[0_4px_20px_rgba(0,90,183,0.3)]">
           {initial}
         </div>
-
-        {/* Name + email */}
         <div className="flex flex-col gap-0.5">
-          <h2 className="font-display font-bold text-[1.125rem] text-on-surface leading-tight">{displayName}</h2>
-          <p className="font-mono text-[0.68rem] text-muted tracking-[0.02em] break-all">{user?.email ?? ''}</p>
+          <h2 className="font-display font-bold text-[1.1rem] text-on-surface leading-tight">{displayName}</h2>
+          <p className="font-mono text-[0.68rem] text-muted break-all">{user?.email ?? ''}</p>
         </div>
       </div>
 
-      {/* Divider */}
-      <div className="h-px bg-surface-high mx-1 mb-4" />
+      <div className="h-px bg-surface-high mb-4" />
 
-      {/* Rating card */}
-      <div className="flex flex-col items-center gap-1 bg-surface rounded-2xl px-4 py-4 w-full border border-surface-high">
-        <span className="font-mono text-[0.6rem] uppercase tracking-[0.1em] text-muted">
-          Glicko-2 Rating
-        </span>
-        {rating ? (
-          <>
-            <span className="font-mono text-[2.25rem] font-bold text-on-surface leading-none nums-tabular mt-0.5">
-              {Math.round(Number(rating.rating))}
+      {/* Ratings grid */}
+      <div className="flex flex-col gap-2">
+        <span className="font-mono text-[0.65rem] text-muted uppercase tracking-[0.08em]">Ratings</span>
+        <div className="grid grid-cols-2 gap-1.5">
+          {TYPES.map((type) => {
+            const r      = ratings[type];
+            const active = type === selectedType;
+            return (
+              <button
+                key={type}
+                onClick={() => setSelectedType(type)}
+                className={[
+                  'flex flex-col gap-0.5 rounded-xl px-3 py-2.5 text-left border-0 cursor-pointer transition-all',
+                  active
+                    ? 'bg-primary/10 ring-1 ring-primary/30'
+                    : 'bg-surface hover:bg-surface-high',
+                ].join(' ')}
+              >
+                <div className="flex items-center gap-1">
+                  <span className="text-xs leading-none">{ICONS[type]}</span>
+                  <span className="font-mono text-[0.6rem] text-muted uppercase tracking-[0.05em] capitalize">{type}</span>
+                </div>
+                <span className="font-mono text-[1.25rem] font-bold text-on-surface leading-none">
+                  {r ? Math.round(Number(r.rating)) : '—'}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Sparkline for the selected type */}
+        {ratingHistory.length >= 2 && (
+          <div className="bg-surface rounded-xl px-3 py-2.5 border border-surface-high mt-1">
+            <span className="font-mono text-[0.6rem] text-muted uppercase tracking-[0.06em]">
+              {ICONS[selectedType]} {selectedType} history
             </span>
-            <span className="font-mono text-[0.7rem] text-muted">
-              ±{Math.round(Number(rating.rd))} RD
-            </span>
-          </>
-        ) : (
-          <>
-            <span className="font-mono text-[2.25rem] font-bold text-on-surface leading-none mt-0.5">—</span>
-            <span className="font-mono text-[0.7rem] text-muted">No games yet</span>
-          </>
+            <RatingSparkline data={ratingHistory} />
+          </div>
         )}
-
-        {ratingHistory.length >= 2 && <RatingSparkline data={ratingHistory} />}
       </div>
 
       {/* Sign out */}
       <button
         onClick={onLogout}
-        className="font-body text-[0.8125rem] font-medium text-muted underline underline-offset-[3px] bg-transparent border-0 cursor-pointer mt-5 self-center hover:text-danger transition-colors"
+        className="font-body text-[0.8125rem] font-medium text-muted underline underline-offset-[3px] bg-transparent border-0 cursor-pointer mt-6 self-center hover:text-danger transition-colors"
       >
         Sign out
       </button>
@@ -69,10 +96,10 @@ export function ProfilePanel({ token, user, onLogout }) {
 }
 
 function RatingSparkline({ data }) {
-  const W = 180, H = 44, PAD = 4;
+  const W = 200, H = 44, PAD = 4;
   const ratings = data.map((d) => Number(d.rating));
-  const min = Math.min(...ratings);
-  const max = Math.max(...ratings);
+  const min   = Math.min(...ratings);
+  const max   = Math.max(...ratings);
   const range = max - min || 1;
 
   const xs = data.map((_, i) => PAD + (i / (data.length - 1)) * (W - PAD * 2));
@@ -83,24 +110,24 @@ function RatingSparkline({ data }) {
   const trend = isUp ? '#15803d' : '#b91c1c';
 
   return (
-    <div className="w-full mt-2">
+    <div className="w-full mt-1.5">
       <svg viewBox={`0 0 ${W} ${H}`} width="100%" height={H} className="overflow-visible" aria-label="Rating history">
         <defs>
-          <linearGradient id="sparkGrad" x1="0" y1="0" x2="0" y2="1">
+          <linearGradient id={`sg-${isUp ? 'up' : 'dn'}`} x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%"   stopColor={trend} stopOpacity="0.2" />
             <stop offset="100%" stopColor={trend} stopOpacity="0" />
           </linearGradient>
         </defs>
-        <polygon points={`${xs[0]},${H} ${polyline} ${xs[xs.length-1]},${H}`} fill="url(#sparkGrad)" />
+        <polygon points={`${xs[0]},${H} ${polyline} ${xs[xs.length-1]},${H}`} fill={`url(#sg-${isUp ? 'up' : 'dn'})`} />
         <polyline points={polyline} fill="none" stroke={trend} strokeWidth="1.75" strokeLinejoin="round" strokeLinecap="round" />
         <circle cx={xs[xs.length-1]} cy={ys[ys.length-1]} r="3" fill={trend} stroke="white" strokeWidth="1.5" />
       </svg>
       <div className="flex justify-between mt-0.5">
         <span className="font-mono text-[0.6rem] text-muted">{Math.round(ratings[0])}</span>
         <span className={`font-mono text-[0.6rem] font-semibold ${isUp ? 'text-success' : 'text-danger'}`}>
-          {isUp ? '▲' : '▼'} {Math.round(Math.abs(ratings[ratings.length-1] - ratings[0]))}
+          {isUp ? '▲' : '▼'} {Math.abs(Math.round(ratings[ratings.length - 1] - ratings[0]))}
         </span>
-        <span className="font-mono text-[0.6rem] text-muted">{Math.round(ratings[ratings.length-1])}</span>
+        <span className="font-mono text-[0.6rem] text-muted">{Math.round(ratings[ratings.length - 1])}</span>
       </div>
     </div>
   );
