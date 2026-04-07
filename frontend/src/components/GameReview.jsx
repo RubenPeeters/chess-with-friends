@@ -96,6 +96,7 @@ export function GameReview({ gameId, token, onClose }) {
                 playerColour="white"
                 onMove={() => {}}
                 gameOver={true}
+                animated={false}
               />
 
               {/* Navigation controls */}
