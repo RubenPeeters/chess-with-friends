@@ -10,7 +10,7 @@ const TOKEN_TTL = '7d';
 
 function issueToken(user) {
   return jwt.sign(
-    { sub: user.id, email: user.email },
+    { sub: user.id, email: user.email, display_name: user.display_name },
     process.env.JWT_SECRET,
     { expiresIn: TOKEN_TTL }
   );

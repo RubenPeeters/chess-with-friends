@@ -4,6 +4,7 @@ import { requireAuth } from './middleware/auth.js';
 import friendsRouter from './routes/friends.js';
 import invitesRouter from './routes/invites.js';
 import historyRouter from './routes/history.js';
+import { startRatingUpdater } from './ratingUpdater.js';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -22,4 +23,7 @@ app.use('/history', requireAuth, historyRouter);
 // ── 404 ───────────────────────────────────────────────────────────────────────
 app.use((_req, res) => res.status(404).json({ error: 'Not found' }));
 
-app.listen(PORT, () => console.log(`[social] listening on port ${PORT}`));
+app.listen(PORT, () => {
+  console.log(`[social] listening on port ${PORT}`);
+  startRatingUpdater();
+});
