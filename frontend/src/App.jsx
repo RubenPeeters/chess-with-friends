@@ -6,6 +6,7 @@ import { HistoryPanel } from './components/HistoryPanel.jsx';
 import { FriendsPanel } from './components/FriendsPanel.jsx';
 import { GameReview } from './components/GameReview.jsx';
 import { PlayerProfile } from './components/PlayerProfile.jsx';
+import { Leaderboard } from './components/Leaderboard.jsx';
 import { useGameSocket } from './hooks/useGameSocket.js';
 import { useNotifications } from './hooks/useNotifications.js';
 import { apiFetch } from './api.js';
@@ -47,6 +48,7 @@ export default function App() {
   const [drawOfferDismissed, setDrawOfferDismissed] = useState(null);
   const [viewingGameId, setViewingGameId]           = useState(null);
   const [viewingPlayerId, setViewingPlayerId]       = useState(null);
+  const [showLeaderboard, setShowLeaderboard]       = useState(false);
 
   const { gameState, sendMove, sendResign, sendDrawOffer, sendDrawAccept, connected } =
     useGameSocket(gameId, token);
@@ -320,6 +322,12 @@ export default function App() {
                   {tab === 'play' ? 'Play' : tab === 'history' ? 'History' : 'Friends'}
                 </button>
               ))}
+              <button
+                onClick={() => setShowLeaderboard(true)}
+                className="font-body text-sm py-2 px-5 rounded-xl border-0 cursor-pointer transition-all duration-200 bg-transparent text-muted hover:text-on-surface"
+              >
+                Leaderboard
+              </button>
             </div>
           </div>
 
@@ -443,6 +451,13 @@ export default function App() {
             token={token}
             onClose={() => setViewingPlayerId(null)}
             onViewGame={(id) => { setViewingPlayerId(null); setViewingGameId(id); }}
+          />
+        )}
+        {showLeaderboard && (
+          <Leaderboard
+            token={token}
+            onClose={() => setShowLeaderboard(false)}
+            onViewProfile={(id) => { setShowLeaderboard(false); setViewingPlayerId(id); }}
           />
         )}
       </div>

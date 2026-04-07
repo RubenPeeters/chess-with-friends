@@ -3,6 +3,28 @@ import pool from '../db.js';
 
 const router = Router();
 
+// ── GET /users/leaderboard?type=rapid — top 20 per game type ─────────────────
+router.get('/leaderboard', async (req, res) => {
+  const type = ['bullet', 'blitz', 'rapid', 'classical'].includes(req.query.type)
+    ? req.query.type
+    : 'rapid';
+  try {
+    const { rows } = await pool.query(
+      `SELECT u.id, u.display_name, r.rating, r.rd, r.updated_at
+       FROM ratings r
+       JOIN users u ON u.id = r.user_id
+       WHERE r.game_type = $1
+       ORDER BY r.rating DESC
+       LIMIT 20`,
+      [type]
+    );
+    res.json({ type, players: rows });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // ── GET /users/:userId — public profile ───────────────────────────────────────
 // Returns display name, ratings per game type, and last 15 finished games.
 // Any authenticated user can view any profile.
