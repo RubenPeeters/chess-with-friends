@@ -5,8 +5,15 @@ import { publisher, createSubscriber, inviteChannel, userNotifChannel } from '..
 
 const router = Router();
 
+function classifyTimeControl(tc) {
+  const base = parseInt((tc ?? '10+0').split('+')[0], 10);
+  if (base < 3)  return 'bullet';
+  if (base < 10) return 'blitz';
+  if (base < 30) return 'rapid';
+  return 'classical';
+}
+
 // ── POST /invites — create a shareable game invite link ───────────────────────
-// Optionally accepts `addressee_id` to pre-address the invite to a specific user.
 router.post('/', async (req, res) => {
   const { time_control = '10+0', colour = 'random', addressee_id = null } = req.body;
 
@@ -24,7 +31,6 @@ router.post('/', async (req, res) => {
     );
     const invite = rows[0];
 
-    // If this is a direct challenge, notify the recipient immediately
     if (addressee_id) {
       const { rows: senderRows } = await pool.query(
         `SELECT display_name FROM users WHERE id = $1`,
@@ -34,19 +40,16 @@ router.post('/', async (req, res) => {
       await publisher.publish(
         userNotifChannel(addressee_id),
         JSON.stringify({
-          type: 'challenge',
+          type:         'challenge',
           invite_token: invite.token,
-          from_name: senderName,
-          from_id: req.user.id,
+          from_name:    senderName,
+          from_id:      req.user.id,
           time_control: invite.time_control,
         })
       );
     }
 
-    res.status(201).json({
-      ...invite,
-      invite_path: `/play/${invite.token}`,
-    });
+    res.status(201).json({ ...invite, invite_path: `/play/${invite.token}` });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Internal server error' });
@@ -62,7 +65,7 @@ router.get('/:token', async (req, res) => {
               r.rating AS creator_rating
        FROM invites i
        JOIN users u ON u.id = i.creator_id
-       LEFT JOIN ratings r ON r.user_id = u.id
+       LEFT JOIN ratings r ON r.user_id = u.id AND r.game_type = 'rapid'
        WHERE i.token = $1 AND i.expires_at > NOW() AND i.accepted_at IS NULL`,
       [req.params.token]
     );
@@ -75,13 +78,9 @@ router.get('/:token', async (req, res) => {
 });
 
 // ── GET /invites/:token/watch — SSE stream for invite acceptance ──────────────
-// The creator subscribes here. The moment their invite is accepted, this
-// stream pushes a single `accepted` event containing game_id and colours,
-// then closes. Uses a dedicated Redis subscriber per connection.
 router.get('/:token/watch', async (req, res) => {
   const { token } = req.params;
 
-  // Verify the requester is the invite creator
   try {
     const { rows } = await pool.query(
       `SELECT creator_id FROM invites
@@ -97,19 +96,15 @@ router.get('/:token/watch', async (req, res) => {
     return res.status(500).json({ error: 'Internal server error' });
   }
 
-  // SSE headers
   res.writeHead(200, {
-    'Content-Type':  'text/event-stream',
-    'Cache-Control': 'no-cache',
-    'Connection':    'keep-alive',
-    'X-Accel-Buffering': 'no', // disable Nginx/Caddy proxy buffering
+    'Content-Type':      'text/event-stream',
+    'Cache-Control':     'no-cache',
+    'Connection':        'keep-alive',
+    'X-Accel-Buffering': 'no',
   });
   res.flushHeaders();
 
-  // Keep-alive comment every 25 s to prevent proxy/browser timeouts
   const keepAlive = setInterval(() => res.write(':\n\n'), 25_000);
-
-  // Per-connection subscriber (subscribe mode locks the client)
   const sub = createSubscriber();
   await sub.subscribe(inviteChannel(token));
 
@@ -124,7 +119,6 @@ router.get('/:token/watch', async (req, res) => {
     sub.unsubscribe().then(() => sub.quit()).catch(() => {});
   }
 
-  // Client disconnected (tab closed, navigated away, etc.)
   req.on('close', cleanup);
 });
 
@@ -154,7 +148,6 @@ router.post('/:token/accept', async (req, res) => {
       return res.status(403).json({ error: 'This invite is for someone else' });
     }
 
-    // Assign colours
     let whiteId, blackId;
     if (invite.creator_colour === 'white') {
       whiteId = invite.creator_id; blackId = req.user.id;
@@ -168,11 +161,12 @@ router.post('/:token/accept', async (req, res) => {
       }
     }
 
+    const gameType = classifyTimeControl(invite.time_control);
     const { rows: gameRows } = await client.query(
-      `INSERT INTO games (white_id, black_id, time_control, status)
-       VALUES ($1, $2, $3, 'waiting')
+      `INSERT INTO games (white_id, black_id, time_control, game_type, status)
+       VALUES ($1, $2, $3, $4, 'waiting')
        RETURNING id`,
-      [whiteId, blackId, invite.time_control]
+      [whiteId, blackId, invite.time_control, gameType]
     );
     const game = gameRows[0];
 
@@ -184,10 +178,7 @@ router.post('/:token/accept', async (req, res) => {
     await client.query('COMMIT');
 
     const payload = { game_id: game.id, white_id: whiteId, black_id: blackId };
-
-    // Publish to Redis — the creator's SSE connection receives this instantly
     await publisher.publish(inviteChannel(req.params.token), JSON.stringify(payload));
-
     res.status(201).json(payload);
   } catch (err) {
     await client.query('ROLLBACK');

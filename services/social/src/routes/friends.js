@@ -16,7 +16,7 @@ router.get('/', async (req, res) => {
          WHEN f.requester_id = $1 THEN f.addressee_id
          ELSE f.requester_id
        END
-       LEFT JOIN ratings r ON r.user_id = u.id
+       LEFT JOIN ratings r ON r.user_id = u.id AND r.game_type = 'rapid'
        WHERE (f.requester_id = $1 OR f.addressee_id = $1)
          AND f.status = 'accepted'
        ORDER BY u.display_name`,
@@ -39,7 +39,7 @@ router.get('/pending', async (req, res) => {
          f.created_at AS requested_at
        FROM friendships f
        JOIN users u ON u.id = f.requester_id
-       LEFT JOIN ratings r ON r.user_id = u.id
+       LEFT JOIN ratings r ON r.user_id = u.id AND r.game_type = 'rapid'
        WHERE f.addressee_id = $1
          AND f.status = 'pending'
        ORDER BY f.created_at DESC`,
@@ -61,7 +61,7 @@ router.get('/search', async (req, res) => {
     const { rows } = await pool.query(
       `SELECT u.id, u.display_name, u.email, r.rating
        FROM users u
-       LEFT JOIN ratings r ON r.user_id = u.id
+       LEFT JOIN ratings r ON r.user_id = u.id AND r.game_type = 'rapid'
        WHERE u.id <> $1
          AND (u.display_name ILIKE $2 OR u.email ILIKE $2)
        ORDER BY u.display_name
@@ -82,7 +82,6 @@ router.post('/request', async (req, res) => {
   if (addressee_id === req.user.id) return res.status(400).json({ error: 'Cannot friend yourself' });
 
   try {
-    // Check for any existing relationship in either direction
     const { rows } = await pool.query(
       `SELECT status FROM friendships
        WHERE (requester_id = $1 AND addressee_id = $2)
@@ -109,7 +108,7 @@ router.post('/request', async (req, res) => {
   }
 });
 
-// ── PATCH /friends/request/:id — accept or reject ────────────────────────────
+// ── PATCH /friends/request/:requesterId — accept or reject ───────────────────
 router.patch('/request/:requesterId', async (req, res) => {
   const { action } = req.body; // 'accept' | 'reject'
   if (!['accept', 'reject'].includes(action)) {
@@ -133,8 +132,7 @@ router.patch('/request/:requesterId', async (req, res) => {
       return res.status(404).json({ error: 'Pending request not found' });
     }
 
-    // If accepting, delete any reverse pending request to prevent duplicates
-    // (both users sent requests simultaneously)
+    // Delete any reverse pending request to prevent duplicate friendships
     if (action === 'accept') {
       await client.query(
         `DELETE FROM friendships
