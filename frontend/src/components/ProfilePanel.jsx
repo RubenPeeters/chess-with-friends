@@ -3,16 +3,21 @@ import { apiFetch } from '../api.js';
 
 /**
  * Left-column profile card shown in the lobby.
- * Displays the player's display name, Glicko-2 rating ± RD, and a sign-out button.
+ * Displays the player's display name, Glicko-2 rating ± RD,
+ * a rating history sparkline, and a sign-out button.
  */
 export function ProfilePanel({ token, user, onLogout }) {
-  const [rating, setRating] = useState(null);
+  const [rating, setRating]           = useState(null);
+  const [ratingHistory, setRatingHistory] = useState([]);
 
   useEffect(() => {
     if (!token) return;
     apiFetch('/api/social/history/me/rating', { token })
       .then(setRating)
-      .catch(() => {}); // silently ignore if ratings row doesn't exist yet
+      .catch(() => {});
+    apiFetch('/api/social/history/me/rating/history', { token })
+      .then(setRatingHistory)
+      .catch(() => {});
   }, [token]);
 
   const initial = (user?.display_name ?? user?.displayName ?? '?')[0].toUpperCase();
@@ -38,6 +43,11 @@ export function ProfilePanel({ token, user, onLogout }) {
         ) : (
           <span style={s.ratingValue}>—</span>
         )}
+
+        {/* Sparkline — only shown once there are at least 2 data points */}
+        {ratingHistory.length >= 2 && (
+          <RatingSparkline data={ratingHistory} />
+        )}
       </div>
 
       {/* Sign out */}
@@ -48,6 +58,60 @@ export function ProfilePanel({ token, user, onLogout }) {
   );
 }
 
+// ── Sparkline component ───────────────────────────────────────────────────────
+
+function RatingSparkline({ data }) {
+  const W = 200, H = 48, PAD = 4;
+
+  const ratings = data.map((d) => Number(d.rating));
+  const min = Math.min(...ratings);
+  const max = Math.max(...ratings);
+  const range = max - min || 1;
+
+  const xs = data.map((_, i) => PAD + (i / (data.length - 1)) * (W - PAD * 2));
+  const ys = ratings.map((r) => H - PAD - ((r - min) / range) * (H - PAD * 2));
+
+  const polyline = xs.map((x, i) => `${x},${ys[i]}`).join(' ');
+
+  const last = ratings[ratings.length - 1];
+  const first = ratings[0];
+  const trend = last >= first ? '#15803d' : '#b91c1c';
+
+  return (
+    <svg
+      viewBox={`0 0 ${W} ${H}`}
+      width={W}
+      height={H}
+      style={{ marginTop: '0.5rem', overflow: 'visible' }}
+      aria-label="Rating history sparkline"
+    >
+      {/* Subtle area fill */}
+      <defs>
+        <linearGradient id="sparkGrad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={trend} stopOpacity="0.18" />
+          <stop offset="100%" stopColor={trend} stopOpacity="0" />
+        </linearGradient>
+      </defs>
+      <polygon
+        points={`${xs[0]},${H} ${polyline} ${xs[xs.length - 1]},${H}`}
+        fill="url(#sparkGrad)"
+      />
+      {/* Line */}
+      <polyline
+        points={polyline}
+        fill="none"
+        stroke={trend}
+        strokeWidth="1.5"
+        strokeLinejoin="round"
+        strokeLinecap="round"
+      />
+      {/* End dot */}
+      <circle cx={xs[xs.length - 1]} cy={ys[ys.length - 1]} r="3" fill={trend} />
+    </svg>
+  );
+}
+
+// ── Styles ────────────────────────────────────────────────────────────────────
 const s = {
   panel: {
     display: 'flex',

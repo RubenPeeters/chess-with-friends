@@ -92,6 +92,16 @@ async function updateRatings({ gameId, result, whiteId, blackId }) {
       [blackId, updates.black.rating, updates.black.rd, updates.black.volatility]
     );
 
+    // Append to rating_history for the chart
+    await client.query(
+      `INSERT INTO rating_history (user_id, game_id, rating, rd)
+       VALUES ($1, $2, $3, $4), ($5, $2, $6, $7)`,
+      [
+        whiteId, gameId, updates.white.rating, updates.white.rd,
+        blackId,          updates.black.rating, updates.black.rd,
+      ]
+    );
+
     await client.query('COMMIT');
 
     console.log(

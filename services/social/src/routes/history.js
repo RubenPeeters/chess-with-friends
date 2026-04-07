@@ -33,6 +33,24 @@ router.get('/', async (req, res) => {
   }
 });
 
+// ── GET /history/me/rating/history — sparkline data (last 50 games) ──────────
+router.get('/me/rating/history', async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT rating, rd, recorded_at
+       FROM rating_history
+       WHERE user_id = $1
+       ORDER BY recorded_at ASC
+       LIMIT 50`,
+      [req.user.id]
+    );
+    res.json(rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // ── GET /history/me/rating — current Glicko-2 stats for the logged-in user ───
 router.get('/me/rating', async (req, res) => {
   try {
