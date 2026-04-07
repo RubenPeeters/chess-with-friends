@@ -222,10 +222,32 @@ export default function App() {
   function handleCopyLink() {
     if (!createdInvite) return;
     const link = `${location.origin}/play/${createdInvite.token}`;
-    navigator.clipboard.writeText(link).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    });
+
+    if (navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(link).then(() => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      });
+    } else {
+      // Fallback for non-HTTPS contexts (HTTP IP access, older browsers)
+      const el = document.createElement('textarea');
+      el.value = link;
+      el.style.position = 'fixed';
+      el.style.opacity = '0';
+      document.body.appendChild(el);
+      el.focus();
+      el.select();
+      try {
+        document.execCommand('copy');
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      } catch {
+        // Last resort — show the link in a prompt so user can copy manually
+        window.prompt('Copy this link:', link);
+      } finally {
+        document.body.removeChild(el);
+      }
+    }
   }
 
   // ── Screens ───────────────────────────────────────────────────────────────
