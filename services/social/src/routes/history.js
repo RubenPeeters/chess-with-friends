@@ -20,13 +20,29 @@ router.get('/', async (req, res) => {
        JOIN users b ON b.id = g.black_id
        LEFT JOIN ratings wr ON wr.user_id = g.white_id
        LEFT JOIN ratings br ON br.user_id = g.black_id
-       WHERE g.white_id = $1 OR g.black_id = $1
+       WHERE (g.white_id = $1 OR g.black_id = $1)
          AND g.status = 'finished'
        ORDER BY g.ended_at DESC
        LIMIT $2 OFFSET $3`,
       [req.user.id, limit, offset]
     );
     res.json(rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ── GET /history/me/rating — current Glicko-2 stats for the logged-in user ───
+router.get('/me/rating', async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT rating, rd, volatility, updated_at
+       FROM ratings WHERE user_id = $1`,
+      [req.user.id]
+    );
+    if (rows.length === 0) return res.status(404).json({ error: 'Rating not found' });
+    res.json(rows[0]);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Internal server error' });

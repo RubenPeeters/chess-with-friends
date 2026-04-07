@@ -29,6 +29,52 @@ router.get('/', async (req, res) => {
   }
 });
 
+// ── GET /friends/pending — list incoming pending requests ────────────────────
+router.get('/pending', async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT
+         u.id, u.display_name, u.email,
+         r.rating,
+         f.created_at AS requested_at
+       FROM friendships f
+       JOIN users u ON u.id = f.requester_id
+       LEFT JOIN ratings r ON r.user_id = u.id
+       WHERE f.addressee_id = $1
+         AND f.status = 'pending'
+       ORDER BY f.created_at DESC`,
+      [req.user.id]
+    );
+    res.json(rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ── GET /friends/search?q= — find users by display name or email ──────────────
+router.get('/search', async (req, res) => {
+  const q = (req.query.q ?? '').trim();
+  if (q.length < 2) return res.status(400).json({ error: 'Query too short (min 2 chars)' });
+
+  try {
+    const { rows } = await pool.query(
+      `SELECT u.id, u.display_name, u.email, r.rating
+       FROM users u
+       LEFT JOIN ratings r ON r.user_id = u.id
+       WHERE u.id <> $1
+         AND (u.display_name ILIKE $2 OR u.email ILIKE $2)
+       ORDER BY u.display_name
+       LIMIT 10`,
+      [req.user.id, `%${q}%`]
+    );
+    res.json(rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // ── POST /friends/request — send a friend request ────────────────────────────
 router.post('/request', async (req, res) => {
   const { addressee_id } = req.body;
