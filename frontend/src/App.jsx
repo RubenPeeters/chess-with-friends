@@ -23,6 +23,23 @@ function getInviteTokenFromUrl() {
   return match ? match[1] : null;
 }
 
+// ── Time-control helpers ──────────────────────────────────────────────────────
+
+const TC_CARDS = [
+  { key: 'bullet',    icon: '⚡', label: 'Bullet',    tc: '1+0',  sub: '1 min' },
+  { key: 'blitz',     icon: '🔥', label: 'Blitz',     tc: '5+0',  sub: '5 min' },
+  { key: 'rapid',     icon: '⏱', label: 'Rapid',     tc: '10+0', sub: '10 min' },
+  { key: 'classical', icon: '♞', label: 'Classical', tc: '30+0', sub: '30 min' },
+];
+
+function tcCategory(tc) {
+  const base = parseInt((tc ?? '10+0').split('+')[0], 10);
+  if (base < 3)  return 'bullet';
+  if (base < 10) return 'blitz';
+  if (base < 30) return 'rapid';
+  return 'classical';
+}
+
 // ── App ───────────────────────────────────────────────────────────────────────
 
 export default function App() {
@@ -196,90 +213,130 @@ export default function App() {
   if (!token) {
     const isRegister = authMode === 'register';
     return (
-      <div className="min-h-screen bg-surface flex">
-        {/* Left — branding panel */}
-        <div className="hidden lg:flex flex-col justify-between w-[460px] shrink-0 bg-primary px-12 py-16">
-          <span className="font-display font-extrabold text-xl tracking-[-0.02em] text-on-primary/90">FF</span>
-          <div>
-            <div className="text-5xl mb-8 select-none">♟</div>
-            <h1 className="font-display text-[3.5rem] font-extrabold leading-[1.05] tracking-[-0.03em] text-on-primary">
-              Fianchetto<br />Friends.
-            </h1>
-            <p className="mt-5 font-body text-base text-on-primary/70 leading-relaxed max-w-xs">
-              Play with friends, track your Glicko-2 rating, and climb the leaderboard.
-            </p>
+      <div className="min-h-screen bg-white flex overflow-hidden">
+
+        {/* Left — hero panel */}
+        <div className="hidden lg:flex lg:w-[58%] shrink-0 relative overflow-hidden bg-[#0b1120]">
+          {/* Chessboard grid texture */}
+          <div className="absolute inset-0 grid grid-cols-8 opacity-[0.07] pointer-events-none" style={{ gridTemplateRows: 'repeat(8,1fr)' }}>
+            {Array.from({ length: 64 }).map((_, i) => (
+              <div key={i} className={(Math.floor(i / 8) + i) % 2 === 0 ? 'bg-white' : ''} />
+            ))}
           </div>
-          <p className="font-mono text-[0.65rem] text-on-primary/30 tracking-wide">© 2026 Fianchetto Friends</p>
+          {/* Gradient vignette */}
+          <div className="absolute inset-0 bg-gradient-to-br from-primary/40 via-transparent to-black/60 pointer-events-none" />
+          {/* Decorative large piece */}
+          <div className="absolute -bottom-8 -right-8 text-[22rem] leading-none select-none text-white/[0.04] pointer-events-none">♛</div>
+
+          {/* Content */}
+          <div className="relative z-10 flex flex-col justify-between p-16 h-full w-full">
+            <span className="font-display font-extrabold text-lg tracking-[-0.02em] text-white/80">FF</span>
+
+            <div className="max-w-lg">
+              <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-sm border border-white/10 rounded-full px-4 py-1.5 mb-8">
+                <span className="text-white/60 font-mono text-[0.65rem] uppercase tracking-[0.1em]">Glicko-2 Rated</span>
+                <span className="w-1 h-1 rounded-full bg-white/30" />
+                <span className="text-white/60 font-mono text-[0.65rem] uppercase tracking-[0.1em]">Live Games</span>
+              </div>
+              <h1 className="font-display text-[3.75rem] font-extrabold leading-[1.05] tracking-[-0.03em] text-white mb-6">
+                Precision in<br />Every Move.
+              </h1>
+              <p className="font-body text-lg text-white/60 leading-relaxed max-w-sm">
+                Play with friends, track per-format ratings, and review every game move by move.
+              </p>
+            </div>
+
+            <p className="font-mono text-[0.6rem] text-white/20 tracking-widest uppercase">© 2026 Fianchetto Friends</p>
+          </div>
         </div>
 
-        {/* Right — form */}
-        <div className="flex-1 flex items-center justify-center px-6 py-12 bg-white">
-          <div className="w-full max-w-sm">
+        {/* Right — form panel */}
+        <div className="flex-1 flex flex-col items-center justify-center px-8 md:px-16 py-12 bg-white">
+          <div className="w-full max-w-[360px]">
+
             {/* Mobile logo */}
             <div className="lg:hidden mb-10 flex items-center gap-2">
-              <span className="text-3xl select-none">♟</span>
-              <span className="font-display font-extrabold text-2xl tracking-[-0.02em] text-primary">Fianchetto Friends</span>
+              <span className="text-2xl select-none">♟</span>
+              <span className="font-display font-extrabold text-xl tracking-[-0.02em] text-on-surface">Fianchetto Friends</span>
             </div>
 
-            <h2 className="font-display font-extrabold text-[1.75rem] text-on-surface mb-1 tracking-[-0.02em]">
-              {isRegister ? 'Create your account' : 'Welcome back'}
+            {/* Heading */}
+            <h2 className="font-display font-extrabold text-[1.9rem] text-on-surface mb-1 tracking-[-0.025em]">
+              {isRegister ? 'Create account' : 'Welcome back'}
             </h2>
-            <p className="font-body text-sm text-muted mb-8">
-              {isRegister ? 'Join the game.' : 'Sign in to continue playing.'}
+            <p className="font-body text-sm text-muted mb-10">
+              {isRegister ? 'Start playing in seconds.' : 'Sign in to resume your games.'}
             </p>
 
-            {/* Tab toggle */}
-            <div className="flex gap-1 bg-surface-low rounded-2xl p-1 mb-8 border border-surface-high">
-              {['login', 'register'].map((mode) => (
-                <button
-                  key={mode}
-                  onClick={() => { setAuthMode(mode); setAuthError(''); }}
-                  className={[
-                    'flex-1 font-body text-sm py-2.5 rounded-xl border-0 cursor-pointer transition-all duration-200',
-                    authMode === mode
-                      ? 'bg-primary text-on-primary font-semibold shadow-sm'
-                      : 'bg-transparent text-muted hover:text-on-surface',
-                  ].join(' ')}
-                >
-                  {mode === 'login' ? 'Sign in' : 'Create account'}
-                </button>
-              ))}
-            </div>
-
-            <form onSubmit={handleAuth} className="flex flex-col gap-4">
+            {/* Form */}
+            <form onSubmit={handleAuth} className="flex flex-col gap-5">
               {isRegister && (
                 <div className="flex flex-col gap-1.5">
-                  <label className="field-label">Display name</label>
-                  <input className="text-input" placeholder="Magnus"
+                  <label className="font-body text-xs font-semibold text-muted uppercase tracking-[0.07em]">Display name</label>
+                  <input
+                    className="w-full px-5 py-3.5 bg-surface rounded-xl border border-surface-high outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary font-body text-sm text-on-surface placeholder:text-muted/50 transition-all"
+                    placeholder="Magnus"
                     value={authForm.displayName}
                     onChange={(e) => setAuthForm((f) => ({ ...f, displayName: e.target.value }))}
-                    required />
+                    required
+                  />
                 </div>
               )}
+
               <div className="flex flex-col gap-1.5">
-                <label className="field-label">Email</label>
-                <input className="text-input" type="email" placeholder="you@example.com"
+                <label className="font-body text-xs font-semibold text-muted uppercase tracking-[0.07em]">Email address</label>
+                <input
+                  className="w-full px-5 py-3.5 bg-surface rounded-xl border border-surface-high outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary font-body text-sm text-on-surface placeholder:text-muted/50 transition-all"
+                  type="email"
+                  placeholder="you@example.com"
                   value={authForm.email}
                   onChange={(e) => setAuthForm((f) => ({ ...f, email: e.target.value }))}
-                  required />
+                  required
+                />
               </div>
+
               <div className="flex flex-col gap-1.5">
-                <label className="field-label">Password</label>
-                <input className="text-input" type="password" placeholder="••••••••"
+                <label className="font-body text-xs font-semibold text-muted uppercase tracking-[0.07em]">Password</label>
+                <input
+                  className="w-full px-5 py-3.5 bg-surface rounded-xl border border-surface-high outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary font-body text-sm text-on-surface transition-all"
+                  type="password"
+                  placeholder="••••••••"
                   value={authForm.password}
                   onChange={(e) => setAuthForm((f) => ({ ...f, password: e.target.value }))}
-                  required minLength={8} />
+                  required
+                  minLength={8}
+                />
               </div>
 
               {authError && (
-                <p className="font-mono text-xs text-danger bg-danger-bg rounded-lg px-3 py-2">{authError}</p>
+                <p className="font-mono text-xs text-danger bg-danger-bg rounded-xl px-4 py-2.5">{authError}</p>
               )}
 
-              <button className="btn-primary w-full mt-2" type="submit" disabled={authLoading}>
-                {authLoading ? 'Please wait…' : isRegister ? 'Create account' : 'Sign in'}
+              <button
+                className="w-full py-3.5 bg-primary text-on-primary rounded-full font-display font-bold text-sm tracking-[-0.01em] shadow-lg shadow-primary/20 hover:opacity-90 active:scale-[0.98] transition-all mt-1 border-0 cursor-pointer disabled:opacity-50"
+                type="submit"
+                disabled={authLoading}
+              >
+                {authLoading ? 'Please wait…' : isRegister ? 'Create account' : 'Sign in to Fianchetto'}
               </button>
             </form>
+
+            {/* Mode switch */}
+            <p className="mt-8 text-center font-body text-sm text-muted">
+              {isRegister ? 'Already have an account?' : 'New here?'}{' '}
+              <button
+                onClick={() => { setAuthMode(isRegister ? 'login' : 'register'); setAuthError(''); }}
+                className="text-primary font-semibold bg-transparent border-0 cursor-pointer hover:underline underline-offset-4 decoration-2"
+              >
+                {isRegister ? 'Sign in' : 'Create an account'}
+              </button>
+            </p>
           </div>
+
+          {/* Bottom meta */}
+          <p className="absolute bottom-6 font-mono text-[0.6rem] text-muted/40 tracking-wider uppercase">
+            © 2026 Fianchetto Friends
+          </p>
         </div>
       </div>
     );
@@ -288,134 +345,228 @@ export default function App() {
   // ── Lobby screen ──────────────────────────────────────────────────────────
 
   if (!gameId) {
-    return (
-      <div className="min-h-screen bg-surface flex">
-        {/* Sidebar */}
-        <aside className="w-[280px] shrink-0 bg-white border-r border-surface-high flex flex-col">
-          {/* Brand */}
-          <div className="px-6 py-5 border-b border-surface-high flex items-center gap-2">
-            <span className="text-xl select-none">♟</span>
-            <span className="font-display font-extrabold text-base tracking-[-0.02em] text-on-surface">Fianchetto Friends</span>
-          </div>
-          {/* Profile */}
-          <div className="flex-1 overflow-y-auto">
-            <ProfilePanel token={token} user={user} onLogout={handleLogout} />
-          </div>
-        </aside>
+    const NAV_ITEMS = [
+      { key: 'play',    icon: '♟', label: 'Play' },
+      { key: 'history', icon: '◈', label: 'History' },
+      { key: 'friends', icon: '◎', label: 'Friends' },
+    ];
 
-        {/* Main content */}
-        <div className="flex-1 flex flex-col min-h-screen overflow-y-auto bg-surface">
-          {/* Page header */}
-          <div className="flex justify-center px-8 pt-8 pb-0">
-            <div className="flex gap-1 bg-white rounded-2xl p-1.5 w-fit border border-surface-high shadow-[0_1px_4px_rgba(0,0,0,0.05)]">
-              {['play', 'history', 'friends'].map((tab) => (
-                <button
-                  key={tab}
-                  onClick={() => setLobbyTab(tab)}
-                  className={[
-                    'font-body text-sm py-2 px-5 rounded-xl border-0 cursor-pointer transition-all duration-200 capitalize',
-                    lobbyTab === tab
-                      ? 'bg-primary text-on-primary font-semibold shadow-sm'
-                      : 'bg-transparent text-muted hover:text-on-surface',
-                  ].join(' ')}
-                >
-                  {tab === 'play' ? 'Play' : tab === 'history' ? 'History' : 'Friends'}
-                </button>
-              ))}
-              <button
-                onClick={() => setShowLeaderboard(true)}
-                className="font-body text-sm py-2 px-5 rounded-xl border-0 cursor-pointer transition-all duration-200 bg-transparent text-muted hover:text-on-surface"
-              >
-                Leaderboard
-              </button>
+    return (
+      <div className="min-h-screen bg-[#f1f2f4] flex">
+
+        {/* ── Sidebar ── */}
+        <aside className="w-64 fixed left-0 top-0 h-screen flex flex-col bg-[#f8f9fb] border-r border-black/[0.06] z-40">
+          {/* Brand + user */}
+          <div className="px-5 pt-7 pb-5">
+            <div className="flex items-center gap-2 mb-7">
+              <span className="text-xl select-none">♟</span>
+              <span className="font-display font-extrabold text-sm tracking-[-0.01em] text-on-surface">Fianchetto Friends</span>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center text-on-primary font-display font-extrabold text-base flex-shrink-0 shadow-lg shadow-primary/30">
+                {(user?.display_name ?? '?')[0].toUpperCase()}
+              </div>
+              <div className="min-w-0">
+                <p className="font-display font-bold text-sm text-on-surface truncate">{user?.display_name}</p>
+                <p className="font-mono text-[0.6rem] text-muted uppercase tracking-[0.07em]">Player</p>
+              </div>
             </div>
           </div>
 
-          {/* Tab content */}
-          <div className="flex-1 flex justify-center px-8 py-6">
-            {lobbyTab === 'play' && (
-              <div className="flex flex-col gap-5 w-full max-w-md">
-                {/* Create game card */}
-                <div className="bg-white rounded-2xl shadow-[0_2px_16px_rgba(0,0,0,0.06)] border border-surface-high p-6">
-                  <div className="flex items-center gap-2 mb-5">
-                    <span className="text-xl select-none">✦</span>
-                    <h2 className="font-display font-bold text-lg text-on-surface">New game</h2>
-                  </div>
-                  <div className="flex flex-col gap-4">
-                    <div className="flex flex-col gap-1.5">
-                      <label className="field-label">Time control</label>
-                      <select className="text-input" value={timeControl} onChange={(e) => setTimeControl(e.target.value)}>
-                        <option value="1+0">Bullet — 1 min</option>
-                        <option value="3+0">Blitz — 3 min</option>
-                        <option value="3+2">Blitz — 3 min + 2 sec</option>
-                        <option value="5+0">Blitz — 5 min</option>
-                        <option value="10+0">Rapid — 10 min</option>
-                        <option value="15+10">Rapid — 15 min + 10 sec</option>
-                        <option value="30+0">Classical — 30 min</option>
-                      </select>
-                    </div>
+          <div className="h-px bg-black/[0.06] mx-5" />
 
-                    {createdInvite ? (
-                      <div className="flex flex-col gap-3 bg-surface rounded-2xl p-4 border border-surface-high">
-                        <span className="font-mono text-[0.68rem] text-muted uppercase tracking-[0.06em]">Share with your opponent</span>
-                        <div className="flex items-center gap-2">
-                          <span className="font-mono text-[0.625rem] text-on-surface flex-1 break-all bg-surface-high rounded-xl px-3 py-2.5 leading-relaxed">
-                            {`${location.origin}/play/${createdInvite.token}`}
-                          </span>
-                          <button onClick={handleCopyLink} className={[
-                            'font-mono text-xs font-bold px-3.5 py-2.5 rounded-xl border-0 cursor-pointer whitespace-nowrap transition-all flex-shrink-0',
+          {/* Nav */}
+          <nav className="flex flex-col gap-0.5 px-3 pt-3 flex-1">
+            {NAV_ITEMS.map(({ key, icon, label }) => (
+              <button
+                key={key}
+                onClick={() => setLobbyTab(key)}
+                className={[
+                  'flex items-center gap-3 py-3 px-3 rounded-xl text-left w-full transition-all duration-150 border-0 cursor-pointer',
+                  lobbyTab === key
+                    ? 'bg-primary text-on-primary shadow-sm'
+                    : 'bg-transparent text-muted hover:bg-black/[0.05] hover:text-on-surface',
+                ].join(' ')}
+              >
+                <span className="w-5 text-center text-base leading-none flex-shrink-0">{icon}</span>
+                <span className="font-body text-xs font-semibold uppercase tracking-[0.07em]">{label}</span>
+              </button>
+            ))}
+            <button
+              onClick={() => setShowLeaderboard(true)}
+              className="flex items-center gap-3 py-3 px-3 rounded-xl text-left w-full transition-all duration-150 border-0 cursor-pointer bg-transparent text-muted hover:bg-black/[0.05] hover:text-on-surface"
+            >
+              <span className="w-5 text-center text-base leading-none flex-shrink-0">🏆</span>
+              <span className="font-body text-xs font-semibold uppercase tracking-[0.07em]">Leaderboard</span>
+            </button>
+          </nav>
+
+          {/* Sign out */}
+          <div className="px-3 pb-6 pt-3 border-t border-black/[0.06]">
+            <button
+              onClick={handleLogout}
+              className="flex items-center gap-3 py-3 px-3 rounded-xl text-left w-full transition-all border-0 cursor-pointer text-muted hover:bg-black/[0.05] hover:text-danger"
+            >
+              <span className="w-5 text-center text-sm leading-none flex-shrink-0">↩</span>
+              <span className="font-body text-xs font-semibold uppercase tracking-[0.07em]">Sign out</span>
+            </button>
+          </div>
+        </aside>
+
+        {/* ── Main area ── */}
+        <div className="ml-64 flex-1 flex flex-col min-h-screen">
+
+          {/* Top header */}
+          <header className="sticky top-0 z-30 bg-[#f1f2f4]/80 backdrop-blur-xl border-b border-black/[0.06] px-10 py-4 flex items-center justify-between">
+            <h1 className="font-display font-extrabold text-xl tracking-[-0.025em] text-on-surface">
+              {lobbyTab === 'play' && <>Welcome back, <span className="text-primary">{user?.display_name?.split(' ')[0]}</span>.</>}
+              {lobbyTab === 'history' && 'Match History'}
+              {lobbyTab === 'friends' && 'Friends'}
+            </h1>
+            <button
+              onClick={handleCreateInvite}
+              disabled={creatingInvite}
+              className="flex items-center gap-1.5 bg-primary text-on-primary rounded-full px-5 py-2.5 font-display font-bold text-sm border-0 cursor-pointer hover:opacity-90 active:scale-[0.97] transition-all shadow-lg shadow-primary/20 disabled:opacity-50"
+            >
+              <span className="text-lg leading-none">+</span> New Game
+            </button>
+          </header>
+
+          {/* Content */}
+          <main className="flex-1 px-10 py-8 overflow-y-auto">
+
+            {/* ── Play tab ── */}
+            {lobbyTab === 'play' && (
+              <div className="max-w-[1100px] mx-auto grid grid-cols-12 gap-6">
+
+                {/* Match card */}
+                <section className="col-span-12 lg:col-span-7 bg-white rounded-2xl shadow-[0_2px_16px_rgba(0,0,0,0.05)] border border-black/[0.04] p-8">
+                  <p className="font-mono text-[0.6rem] text-muted uppercase tracking-[0.1em] mb-1">
+                    {createdInvite ? 'Share with your opponent' : 'Start a game'}
+                  </p>
+                  <h2 className="font-display font-extrabold text-2xl text-on-surface tracking-[-0.02em] mb-6">
+                    {createdInvite ? 'Invite link ready' : 'Choose time control'}
+                  </h2>
+
+                  {createdInvite ? (
+                    <div className="flex flex-col gap-4">
+                      <div className="flex items-center gap-3 p-4 bg-[#f1f2f4] rounded-2xl">
+                        <span className="font-mono text-xs text-on-surface flex-1 break-all leading-relaxed">
+                          {`${location.origin}/play/${createdInvite.token}`}
+                        </span>
+                        <button
+                          onClick={handleCopyLink}
+                          className={[
+                            'font-mono text-xs font-bold px-4 py-2 rounded-full border-0 cursor-pointer whitespace-nowrap transition-all flex-shrink-0',
                             copied ? 'bg-success-bg text-success' : 'bg-primary text-on-primary hover:opacity-80',
-                          ].join(' ')}>
-                            {copied ? '✓' : 'Copy'}
-                          </button>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <div className="w-1.5 h-1.5 rounded-full bg-success animate-pulse flex-shrink-0" />
-                          <span className="font-mono text-[0.68rem] text-muted">Waiting for opponent…</span>
-                        </div>
-                        <button onClick={() => setCreatedInvite(null)} className="btn-ghost text-xs self-start">
-                          ← New invite
-                        </button>
+                          ].join(' ')}
+                        >{copied ? '✓ Copied' : 'Copy link'}</button>
                       </div>
-                    ) : (
-                      <button className="btn-primary w-full" onClick={handleCreateInvite} disabled={creatingInvite}>
+                      <div className="flex items-center gap-2">
+                        <div className="w-1.5 h-1.5 rounded-full bg-success animate-pulse flex-shrink-0" />
+                        <span className="font-mono text-[0.68rem] text-muted">Waiting for opponent to join…</span>
+                      </div>
+                      <button onClick={() => setCreatedInvite(null)} className="font-body text-sm text-muted hover:text-on-surface bg-transparent border-0 cursor-pointer self-start transition-colors">
+                        ← New invite
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      {/* Time control cards */}
+                      <div className="grid grid-cols-4 gap-3 mb-5">
+                        {TC_CARDS.map(({ key, icon, label, tc, sub }) => {
+                          const active = tcCategory(timeControl) === key;
+                          return (
+                            <button
+                              key={key}
+                              onClick={() => setTimeControl(tc)}
+                              className={[
+                                'flex flex-col gap-2.5 p-4 rounded-xl text-left border-2 transition-all duration-150 cursor-pointer',
+                                active
+                                  ? 'bg-primary border-primary text-on-primary shadow-lg shadow-primary/25 -translate-y-0.5'
+                                  : 'bg-[#f1f2f4] border-transparent hover:border-primary/20 hover:bg-primary/5 hover:-translate-y-0.5',
+                              ].join(' ')}
+                            >
+                              <span className="text-2xl leading-none">{icon}</span>
+                              <div>
+                                <p className={`font-display font-bold text-sm ${active ? 'text-on-primary' : 'text-on-surface'}`}>{label}</p>
+                                <p className={`font-mono text-[0.62rem] mt-0.5 ${active ? 'text-on-primary/70' : 'text-muted'}`}>{sub}</p>
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      {/* Custom TC */}
+                      <div className="flex items-center gap-3 mb-5 p-3 bg-[#f1f2f4] rounded-xl">
+                        <span className="font-mono text-[0.62rem] text-muted uppercase tracking-[0.07em] whitespace-nowrap">Custom:</span>
+                        <select
+                          className="flex-1 bg-transparent border-0 outline-none font-body text-sm text-on-surface cursor-pointer"
+                          value={timeControl}
+                          onChange={(e) => setTimeControl(e.target.value)}
+                        >
+                          <option value="1+0">Bullet — 1 min</option>
+                          <option value="3+0">Blitz — 3 min</option>
+                          <option value="3+2">Blitz — 3 min + 2 sec</option>
+                          <option value="5+0">Blitz — 5 min</option>
+                          <option value="10+0">Rapid — 10 min</option>
+                          <option value="15+10">Rapid — 15 min + 10 sec</option>
+                          <option value="30+0">Classical — 30 min</option>
+                        </select>
+                      </div>
+
+                      {lobbyError && (
+                        <p className="font-mono text-xs text-danger bg-danger-bg rounded-xl px-4 py-2.5 mb-4">{lobbyError}</p>
+                      )}
+
+                      <button
+                        className="w-full py-3.5 bg-primary text-on-primary rounded-full font-display font-bold text-sm border-0 cursor-pointer hover:opacity-90 active:scale-[0.98] transition-all shadow-lg shadow-primary/20 disabled:opacity-50"
+                        onClick={handleCreateInvite}
+                        disabled={creatingInvite}
+                      >
                         {creatingInvite ? 'Creating…' : 'Create invite link'}
                       </button>
-                    )}
-                  </div>
-                </div>
+                    </>
+                  )}
+                </section>
 
-                {/* Join game card */}
-                <div className="bg-white rounded-2xl shadow-[0_2px_16px_rgba(0,0,0,0.06)] border border-surface-high p-6">
-                  <div className="flex items-center gap-2 mb-5">
-                    <span className="text-xl select-none">⤵</span>
-                    <h2 className="font-display font-bold text-lg text-on-surface">Join a game</h2>
-                  </div>
-                  <form onSubmit={handleJoin} className="flex flex-col gap-4">
-                    <div className="flex flex-col gap-1.5">
-                      <label className="field-label">Invite token or game ID</label>
+                {/* Profile ratings card */}
+                <section className="col-span-12 lg:col-span-5 bg-white rounded-2xl shadow-[0_2px_16px_rgba(0,0,0,0.05)] border border-black/[0.04] overflow-hidden">
+                  <ProfilePanel token={token} user={user} />
+                </section>
+
+                {/* Join game strip */}
+                <section className="col-span-12 bg-white rounded-2xl shadow-[0_2px_16px_rgba(0,0,0,0.05)] border border-black/[0.04] px-8 py-6">
+                  <h2 className="font-display font-bold text-base text-on-surface mb-4">Join a game</h2>
+                  <form onSubmit={handleJoin} className="flex items-end gap-3">
+                    <div className="flex flex-col gap-1.5 flex-1">
+                      <label className="font-mono text-[0.6rem] text-muted uppercase tracking-[0.07em]">Invite token or game ID</label>
                       <input
-                        className="text-input font-mono text-xs"
+                        className="px-4 py-3 bg-[#f1f2f4] rounded-xl border-0 outline-none focus:ring-2 focus:ring-primary/30 font-mono text-xs text-on-surface placeholder:text-muted/50 transition-all"
                         placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
                         value={joinInput}
                         onChange={(e) => setJoinInput(e.target.value)}
                         required
                       />
                     </div>
-                    {lobbyError && (
-                      <p className="font-mono text-xs text-danger bg-danger-bg rounded-xl px-3 py-2">{lobbyError}</p>
-                    )}
-                    <button className="btn-primary w-full" type="submit" disabled={joiningGame}>
-                      {joiningGame ? 'Joining…' : 'Join game'}
+                    <button
+                      className="py-3 px-6 bg-on-surface text-white rounded-full font-display font-bold text-sm border-0 cursor-pointer hover:opacity-80 transition-all whitespace-nowrap disabled:opacity-50 flex-shrink-0"
+                      type="submit"
+                      disabled={joiningGame}
+                    >
+                      {joiningGame ? 'Joining…' : 'Join game →'}
                     </button>
                   </form>
-                </div>
+                  {lobbyError && (
+                    <p className="font-mono text-xs text-danger mt-3">{lobbyError}</p>
+                  )}
+                </section>
               </div>
             )}
 
+            {/* ── History tab ── */}
             {lobbyTab === 'history' && (
-              <div className="w-full max-w-md">
-                <h2 className="font-display font-bold text-lg text-on-surface mb-4">Match history</h2>
+              <div className="max-w-2xl mx-auto">
                 <HistoryPanel
                   token={token}
                   userId={user?.id}
@@ -425,9 +576,9 @@ export default function App() {
               </div>
             )}
 
+            {/* ── Friends tab ── */}
             {lobbyTab === 'friends' && (
-              <div className="w-full max-w-md">
-                <h2 className="font-display font-bold text-lg text-on-surface mb-4">Friends</h2>
+              <div className="max-w-2xl mx-auto">
                 <FriendsPanel
                   token={token}
                   onChallengeAccepted={({ game_id, white_id }) => {
@@ -437,7 +588,7 @@ export default function App() {
                 />
               </div>
             )}
-          </div>
+          </main>
         </div>
 
         {challengeBanner}

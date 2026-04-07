@@ -4,7 +4,7 @@ import { apiFetch } from '../api.js';
 const TYPES = ['bullet', 'blitz', 'rapid', 'classical'];
 const ICONS = { bullet: '⚡', blitz: '🔥', rapid: '⏱', classical: '♞' };
 
-export function ProfilePanel({ token, user, onLogout }) {
+export function ProfilePanel({ token, user, onLogout = null }) {
   const [ratings, setRatings]             = useState({});
   const [selectedType, setSelectedType]   = useState('rapid');
   const [ratingHistory, setRatingHistory] = useState([]);
@@ -85,12 +85,14 @@ export function ProfilePanel({ token, user, onLogout }) {
       </div>
 
       {/* Sign out */}
-      <button
-        onClick={onLogout}
-        className="font-body text-[0.8125rem] font-medium text-muted underline underline-offset-[3px] bg-transparent border-0 cursor-pointer mt-6 self-center hover:text-danger transition-colors"
-      >
-        Sign out
-      </button>
+      {onLogout && (
+        <button
+          onClick={onLogout}
+          className="font-body text-[0.8125rem] font-medium text-muted underline underline-offset-[3px] bg-transparent border-0 cursor-pointer mt-6 self-center hover:text-danger transition-colors"
+        >
+          Sign out
+        </button>
+      )}
     </div>
   );
 }
