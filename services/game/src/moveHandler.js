@@ -1,5 +1,6 @@
 import { Chess } from 'chess.js';
 import { getClocks, switchClock, stopClocks, addIncrement } from './clockManager.js';
+import { publishGameFinished } from './publisher.js';
 
 /**
  * Validate and apply a move. Updates FEN in Redis, switches clocks,
@@ -85,6 +86,13 @@ export async function handleMove({ room, client, payload, redis, pgPool }) {
     );
 
     room.broadcast({ type: 'game_over', result: gameResult, reason });
+    await publishGameFinished({
+      gameId,
+      result: gameResult,
+      reason,
+      whiteId: room.whiteId,
+      blackId: room.blackId,
+    });
     return;
   }
 
@@ -98,6 +106,13 @@ export async function handleMove({ room, client, payload, redis, pgPool }) {
       [winner, gameId]
     );
     room.broadcast({ type: 'game_over', result: winner, reason: 'timeout' });
+    await publishGameFinished({
+      gameId,
+      result: winner,
+      reason: 'timeout',
+      whiteId: room.whiteId,
+      blackId: room.blackId,
+    });
     return;
   }
 

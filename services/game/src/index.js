@@ -5,6 +5,7 @@ import { Redis } from 'ioredis';
 import pg from 'pg';
 import { Room } from './room.js';
 import { handleMove } from './moveHandler.js';
+import { publishGameFinished } from './publisher.js';
 
 const PORT = process.env.PORT || 4000;
 const { Pool } = pg;
@@ -132,6 +133,10 @@ async function handleRejoin(ws, { gameId }) {
   }
 
   const room = rooms.get(gameId);
+  // Always keep player IDs fresh on the room so moveHandler / resign can publish them
+  room.whiteId = game.white_id;
+  room.blackId = game.black_id;
+
   ws.gameId = gameId;
   room.addClient(ws, ws.userId, colour);
 
@@ -160,6 +165,13 @@ async function handleResign(ws, { gameId }) {
     [winner, gameId]
   );
   room.broadcast({ type: 'game_over', result: winner, reason: 'resignation' });
+  await publishGameFinished({
+    gameId,
+    result: winner,
+    reason: 'resignation',
+    whiteId: room.whiteId,
+    blackId: room.blackId,
+  });
 }
 
 async function handleDrawOffer(ws, { gameId }) {
