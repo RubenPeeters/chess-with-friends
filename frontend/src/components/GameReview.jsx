@@ -1,6 +1,7 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { Board } from './Board.jsx';
 import { apiFetch } from '../api.js';
+import { identifyOpening } from '../utils/openings.js';
 
 export function GameReview({ gameId, token, onClose }) {
   const [data, setData]       = useState(null);
@@ -30,8 +31,9 @@ export function GameReview({ gameId, token, onClose }) {
     return () => window.removeEventListener('keydown', onKey);
   }, [data, onClose]);
 
-  const fen   = !data || cursor === 0 ? 'start' : data.moves[cursor - 1].fen;
-  const total = data?.moves.length ?? 0;
+  const fen     = !data || cursor === 0 ? 'start' : data.moves[cursor - 1].fen;
+  const total   = data?.moves.length ?? 0;
+  const opening = data ? identifyOpening(data.moves.map((m) => m.san)) : null;
 
   // Pair moves into rows: [[w1,b1],[w2,b2],...]
   const movePairs = data?.moves.reduce((pairs, move, i) => {
@@ -58,14 +60,21 @@ export function GameReview({ gameId, token, onClose }) {
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 bg-white border-b border-surface-high flex-shrink-0">
           {data ? (
-            <div className="flex items-center gap-3 min-w-0">
-              <span className="font-display font-bold text-base text-on-surface truncate">
-                {data.game.white_name} vs {data.game.black_name}
-              </span>
-              <span className="font-mono text-xs bg-surface-high text-muted px-2.5 py-1 rounded-full flex-shrink-0">
-                {data.game.time_control}
-              </span>
-              <span className="font-mono text-xs text-primary font-bold flex-shrink-0">{resultLabel}</span>
+            <div className="flex flex-col gap-0.5 min-w-0">
+              <div className="flex items-center gap-3 min-w-0">
+                <span className="font-display font-bold text-base text-on-surface truncate">
+                  {data.game.white_name} vs {data.game.black_name}
+                </span>
+                <span className="font-mono text-xs bg-surface-high text-muted px-2.5 py-1 rounded-full flex-shrink-0">
+                  {data.game.time_control}
+                </span>
+                <span className="font-mono text-xs text-primary font-bold flex-shrink-0">{resultLabel}</span>
+              </div>
+              {opening && (
+                <span className="font-mono text-[0.68rem] text-muted truncate">
+                  {opening.eco} · {opening.name}
+                </span>
+              )}
             </div>
           ) : <div />}
           <button
