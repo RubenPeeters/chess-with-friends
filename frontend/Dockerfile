@@ -8,10 +8,10 @@ RUN npm install
 
 COPY . .
 
-# Copy stockfish.js into public/ so it can be served as a Web Worker.
-RUN cp node_modules/stockfish/src/stockfish.js public/stockfish.js 2>/dev/null || \
-    cp node_modules/stockfish/stockfish.js public/stockfish.js 2>/dev/null || \
-    echo "WARNING: stockfish.js not found, engine analysis will be disabled"
+# Download stockfish.js (classic UCI Web Worker build) directly into public/.
+# Using the nmrugg/stockfish.js release which is the standard browser UCI worker.
+RUN wget -q https://cdn.jsdelivr.net/npm/stockfish@10.0.2/stockfish.js \
+         -O public/stockfish.js
 
 # In production there is no VITE_WS_BASE_URL — the hook falls back to
 # wss://window.location.host which is correct behind Caddy.
