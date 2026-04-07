@@ -11,6 +11,16 @@ services:
     environment:
       SITE_ADDR: ${SITE_ADDR:-:80}
       CADDY_ACME_EMAIL: ${CADDY_ACME_EMAIL:-}
+    # Warn loudly if a real domain is configured without an ACME email.
+    # This runs before Caddy starts so the error is obvious in the logs.
+    command: >
+      sh -c "
+        if [ \"$${SITE_ADDR}\" != ':80' ] && [ -z \"$${CADDY_ACME_EMAIL}\" ]; then
+          echo 'ERROR: CADDY_ACME_EMAIL must be set when SITE_ADDR is a domain (got: $${SITE_ADDR})';
+          exit 1;
+        fi;
+        caddy run --config /etc/caddy/Caddyfile --adapter caddyfile
+      "
     depends_on:
       api:
         condition: service_healthy

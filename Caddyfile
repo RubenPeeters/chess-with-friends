@@ -1,17 +1,18 @@
 {
 	admin off
-	# Caddy automatically provisions and renews Let's Encrypt TLS.
-	# Set your email so Let's Encrypt can contact you about expiry.
-	email {$CADDY_ACME_EMAIL}
+	# CADDY_ACME_EMAIL must be set in .env for production HTTPS.
+	# For local dev (SITE_ADDR=:80) Caddy won't request certificates so
+	# the email is ignored — but we still require it to be set so that
+	# a production deploy never silently skips ACME registration.
+	email {$CADDY_ACME_EMAIL:}
 }
 
-# ── Site definition ───────────────────────────────────────────────────────────
 # SITE_ADDR is injected from the .env file:
-#   • Production:  SITE_ADDR=chesswithfriends.gg   (your domain)
-#   • Local dev:   SITE_ADDR=:80                    (plain HTTP, no TLS)
+#   • Production:  SITE_ADDR=chesswithfriends.gg
+#   • Local dev:   SITE_ADDR=:80
 {$SITE_ADDR} {
 
-	# WebSocket game connections (Caddy auto-detects the Upgrade header)
+	# WebSocket game connections
 	handle /ws* {
 		reverse_proxy game:4000
 	}
@@ -30,7 +31,7 @@
 		reverse_proxy api:3000
 	}
 
-	# Frontend — served by the nginx container in production
+	# Frontend
 	handle {
 		reverse_proxy frontend:80
 	}
