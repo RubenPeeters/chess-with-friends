@@ -1,18 +1,22 @@
 {
 	admin off
-	# Remove this block and set a real email for HTTPS on a VPS:
-	# email you@example.com
+	# Caddy automatically provisions and renews Let's Encrypt TLS.
+	# Set your email so Let's Encrypt can contact you about expiry.
+	email {$CADDY_ACME_EMAIL}
 }
 
-:80 {
-	# WebSocket game connections — path-based routing.
-	# Caddy's reverse_proxy detects the Upgrade header and proxies WS automatically.
+# ── Site definition ───────────────────────────────────────────────────────────
+# SITE_ADDR is injected from the .env file:
+#   • Production:  SITE_ADDR=chesswithfriends.gg   (your domain)
+#   • Local dev:   SITE_ADDR=:80                    (plain HTTP, no TLS)
+{$SITE_ADDR} {
+
+	# WebSocket game connections (Caddy auto-detects the Upgrade header)
 	handle /ws* {
 		reverse_proxy game:4000
 	}
 
-	# Social service routes
-	# flush_interval -1 enables streaming mode, required for SSE (invite watch).
+	# Social service — flush_interval -1 required for SSE streaming
 	handle /api/social/* {
 		uri strip_prefix /api/social
 		reverse_proxy social:3001 {
@@ -20,16 +24,14 @@
 		}
 	}
 
-	# Auth + general API routes
+	# Auth + general API
 	handle /api/* {
 		uri strip_prefix /api
 		reverse_proxy api:3000
 	}
 
-	# Fallback — serve frontend build (mount dist/ as a volume in prod)
+	# Frontend — served by the nginx container in production
 	handle {
-		root * /srv
-		try_files {path} /index.html
-		file_server
+		reverse_proxy frontend:80
 	}
 }
