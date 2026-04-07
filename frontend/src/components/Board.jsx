@@ -21,28 +21,16 @@ export function Board({ fen, playerColour, onMove, gameOver }) {
   }
 
   return (
-    /* surface-container-lowest card — elevated by ambient shadow, no border */
-    <div style={css.card}>
+    <div className="bg-white rounded-2xl p-3 shadow-[0_8px_40px_rgba(0,0,0,0.10)] w-full max-w-[560px] border border-surface-high">
       <Chessboard
         position={fen === 'start' ? 'start' : fen}
         onPieceDrop={onDrop}
         boardOrientation={playerColour}
-        customBoardStyle={{ borderRadius: '0.5rem', overflow: 'hidden' }}
-        customDarkSquareStyle={{ backgroundColor: '#4a7c59' }}
-        customLightSquareStyle={{ backgroundColor: '#f0d9b5' }}
+        customBoardStyle={{ borderRadius: '0.75rem', overflow: 'hidden' }}
+        customDarkSquareStyle={{ backgroundColor: '#769656' }}
+        customLightSquareStyle={{ backgroundColor: '#eeeed2' }}
         arePiecesDraggable={!gameOver}
       />
     </div>
   );
 }
-
-const css = {
-  card: {
-    background: 'var(--surface-lowest)',
-    borderRadius: 'var(--radius-md)',
-    padding: '1rem',
-    boxShadow: 'var(--ambient-shadow-raised)',
-    width: '100%',
-    maxWidth: 560,
-  },
-};

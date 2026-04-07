@@ -2,33 +2,25 @@ import { useState, useEffect, useCallback } from 'react';
 import { apiFetch } from '../api.js';
 
 const TIME_CONTROLS = [
-  { value: '1+0',   label: 'Bullet 1 min' },
-  { value: '3+0',   label: 'Blitz 3 min' },
-  { value: '3+2',   label: 'Blitz 3+2' },
-  { value: '5+0',   label: 'Blitz 5 min' },
-  { value: '10+0',  label: 'Rapid 10 min' },
-  { value: '15+10', label: 'Rapid 15+10' },
-  { value: '30+0',  label: 'Classical 30 min' },
+  { value: '1+0',   label: 'Bullet — 1 min' },
+  { value: '3+0',   label: 'Blitz — 3 min' },
+  { value: '3+2',   label: 'Blitz — 3+2' },
+  { value: '5+0',   label: 'Blitz — 5 min' },
+  { value: '10+0',  label: 'Rapid — 10 min' },
+  { value: '15+10', label: 'Rapid — 15+10' },
+  { value: '30+0',  label: 'Classical — 30 min' },
 ];
 
-/**
- * Friends panel:
- *  • Current friends list with ratings + inline challenge flow
- *  • Incoming pending requests (accept / reject)
- *  • Search-and-add by display name or email
- */
 export function FriendsPanel({ token, onChallengeAccepted }) {
-  const [friends, setFriends]     = useState([]);
-  const [pending, setPending]     = useState([]);
-  const [searchQ, setSearchQ]     = useState('');
-  const [results, setResults]     = useState([]);
-  const [searching, setSearching] = useState(false);
-  const [searchErr, setSearchErr] = useState('');
-  const [actionMsg, setActionMsg] = useState('');
-  const [loading, setLoading]     = useState(true);
-
-  // Challenge state: { friendId, friendName, timeControl, invite } | null
-  const [challenge, setChallenge] = useState(null);
+  const [friends, setFriends]         = useState([]);
+  const [pending, setPending]         = useState([]);
+  const [searchQ, setSearchQ]         = useState('');
+  const [results, setResults]         = useState([]);
+  const [searching, setSearching]     = useState(false);
+  const [searchErr, setSearchErr]     = useState('');
+  const [actionMsg, setActionMsg]     = useState('');
+  const [loading, setLoading]         = useState(true);
+  const [challenge, setChallenge]     = useState(null); // { friendId, friendName, timeControl, invite }
   const [challenging, setChallenging] = useState(false);
 
   const refresh = useCallback(async () => {
@@ -40,104 +32,65 @@ export function FriendsPanel({ token, onChallengeAccepted }) {
       ]);
       setFriends(f);
       setPending(p);
-    } catch {
-      /* silently ignore */
-    } finally {
-      setLoading(false);
-    }
+    } catch { /* silently ignore */ }
+    finally { setLoading(false); }
   }, [token]);
 
   useEffect(() => { refresh(); }, [refresh]);
 
-  // ── SSE: watch for challenge acceptance ──────────────────────────────────────
+  // SSE — watch for challenge acceptance
   useEffect(() => {
     if (!challenge?.invite || !token) return;
-
     const url = `/api/social/invites/${challenge.invite.token}/watch?token=${encodeURIComponent(token)}`;
-    const es = new EventSource(url);
-
+    const es  = new EventSource(url);
     es.addEventListener('accepted', (e) => {
-      const data = JSON.parse(e.data);
       es.close();
       setChallenge(null);
-      onChallengeAccepted?.(data);
+      onChallengeAccepted?.(JSON.parse(e.data));
     });
-
     es.onerror = () => es.close();
     return () => es.close();
   }, [challenge?.invite?.token, token, onChallengeAccepted]);
-
-  async function openChallenge(friend) {
-    setChallenge({ friendId: friend.id, friendName: friend.display_name, timeControl: '10+0', invite: null });
-  }
 
   async function sendChallenge() {
     if (!challenge) return;
     setChallenging(true);
     try {
       const invite = await apiFetch('/api/social/invites', {
-        method: 'POST',
-        token,
-        body: JSON.stringify({
-          time_control: challenge.timeControl,
-          colour: 'random',
-          addressee_id: challenge.friendId,
-        }),
+        method: 'POST', token,
+        body: JSON.stringify({ time_control: challenge.timeControl, colour: 'random', addressee_id: challenge.friendId }),
       });
       setChallenge((prev) => ({ ...prev, invite }));
     } catch (err) {
       flash(err.message);
       setChallenge(null);
-    } finally {
-      setChallenging(false);
-    }
+    } finally { setChallenging(false); }
   }
 
   async function handleSearch(e) {
     e.preventDefault();
     if (searchQ.trim().length < 2) return;
-    setSearching(true);
-    setSearchErr('');
-    setResults([]);
+    setSearching(true); setSearchErr(''); setResults([]);
     try {
-      const rows = await apiFetch(
-        `/api/social/friends/search?q=${encodeURIComponent(searchQ.trim())}`,
-        { token }
-      );
-      setResults(rows);
-    } catch (err) {
-      setSearchErr(err.message);
-    } finally {
-      setSearching(false);
-    }
+      setResults(await apiFetch(`/api/social/friends/search?q=${encodeURIComponent(searchQ.trim())}`, { token }));
+    } catch (err) { setSearchErr(err.message); }
+    finally { setSearching(false); }
   }
 
   async function sendRequest(addresseeId, name) {
     try {
-      await apiFetch('/api/social/friends/request', {
-        method: 'POST',
-        token,
-        body: JSON.stringify({ addressee_id: addresseeId }),
-      });
-      flash(`Request sent to ${name}`);
+      await apiFetch('/api/social/friends/request', { method: 'POST', token, body: JSON.stringify({ addressee_id: addresseeId }) });
+      flash(`Request sent to ${name}!`);
       setResults((prev) => prev.filter((u) => u.id !== addresseeId));
-    } catch (err) {
-      flash(err.message);
-    }
+    } catch (err) { flash(err.message); }
   }
 
   async function respondRequest(requesterId, action) {
     try {
-      await apiFetch(`/api/social/friends/request/${requesterId}`, {
-        method: 'PATCH',
-        token,
-        body: JSON.stringify({ action }),
-      });
+      await apiFetch(`/api/social/friends/request/${requesterId}`, { method: 'PATCH', token, body: JSON.stringify({ action }) });
       flash(action === 'accept' ? 'Friend added!' : 'Request declined');
       refresh();
-    } catch (err) {
-      flash(err.message);
-    }
+    } catch (err) { flash(err.message); }
   }
 
   async function removeFriend(userId, name) {
@@ -146,322 +99,174 @@ export function FriendsPanel({ token, onChallengeAccepted }) {
       await apiFetch(`/api/social/friends/${userId}`, { method: 'DELETE', token });
       flash(`${name} removed`);
       setFriends((prev) => prev.filter((f) => f.id !== userId));
-    } catch (err) {
-      flash(err.message);
-    }
+    } catch (err) { flash(err.message); }
   }
 
   function flash(msg) {
     setActionMsg(msg);
-    setTimeout(() => setActionMsg(''), 3000);
+    setTimeout(() => setActionMsg(''), 3500);
   }
 
-  if (loading) return <p style={s.empty}>Loading…</p>;
+  if (loading) return (
+    <div className="flex flex-col gap-3">
+      {[...Array(3)].map((_, i) => (
+        <div key={i} className="h-[60px] rounded-2xl bg-surface-high animate-pulse" />
+      ))}
+    </div>
+  );
 
   return (
-    <div style={s.wrap}>
+    <div className="flex flex-col gap-6">
 
-      {/* Flash message */}
-      {actionMsg && <div style={s.flash}>{actionMsg}</div>}
+      {/* Toast */}
+      {actionMsg && (
+        <div className="font-mono text-[0.8rem] bg-success-bg text-success rounded-xl px-4 py-2.5 flex items-center gap-2">
+          <span>✓</span> {actionMsg}
+        </div>
+      )}
 
-      {/* ── Challenge modal ── */}
+      {/* Challenge card */}
       {challenge && (
-        <div style={s.challengeBox}>
+        <div className="flex flex-col gap-3 bg-white rounded-2xl p-5 border border-primary/20 shadow-[0_2px_12px_rgba(0,90,183,0.08)]">
           {challenge.invite ? (
-            /* Waiting for friend to accept */
             <>
-              <span style={s.challengeTitle}>Challenge sent to {challenge.friendName}</span>
-              <span style={s.challengeSub}>Waiting for them to accept…</span>
-              <button style={s.btnReject} onClick={() => setChallenge(null)}>Cancel</button>
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
+                <span className="font-display font-bold text-base text-on-surface">
+                  Waiting for {challenge.friendName}…
+                </span>
+              </div>
+              <span className="font-mono text-xs text-muted">{challenge.timeControl} · Challenge sent</span>
+              <button onClick={() => setChallenge(null)} className="btn-secondary self-start text-sm">
+                Cancel
+              </button>
             </>
           ) : (
-            /* Pick time control and send */
             <>
-              <span style={s.challengeTitle}>Challenge {challenge.friendName}</span>
+              <span className="font-display font-bold text-base text-on-surface">
+                Challenge {challenge.friendName}
+              </span>
               <select
-                style={s.select}
+                className="text-input"
                 value={challenge.timeControl}
-                onChange={(e) => setChallenge((prev) => ({ ...prev, timeControl: e.target.value }))}
+                onChange={(e) => setChallenge((p) => ({ ...p, timeControl: e.target.value }))}
               >
-                {TIME_CONTROLS.map((tc) => (
-                  <option key={tc.value} value={tc.value}>{tc.label}</option>
-                ))}
+                {TIME_CONTROLS.map((tc) => <option key={tc.value} value={tc.value}>{tc.label}</option>)}
               </select>
-              <div style={s.rowActions}>
-                <button style={s.btnAccept} onClick={sendChallenge} disabled={challenging}>
+              <div className="flex gap-2">
+                <button onClick={sendChallenge} disabled={challenging} className="btn-primary text-sm py-2.5 px-5">
                   {challenging ? 'Sending…' : 'Send challenge'}
                 </button>
-                <button style={s.btnReject} onClick={() => setChallenge(null)}>Cancel</button>
+                <button onClick={() => setChallenge(null)} className="btn-secondary text-sm">
+                  Cancel
+                </button>
               </div>
             </>
           )}
         </div>
       )}
 
-      {/* ── Pending requests ── */}
+      {/* Pending requests */}
       {pending.length > 0 && (
-        <section>
-          <h3 style={s.sectionTitle}>Pending requests</h3>
+        <section className="flex flex-col gap-2">
+          <SectionTitle>Pending requests ({pending.length})</SectionTitle>
           {pending.map((u) => (
-            <div key={u.id} style={s.row}>
-              <div style={s.userInfo}>
-                <span style={s.userName}>{u.display_name}</span>
-                {u.rating != null && (
-                  <span style={s.userRating}>{Math.round(Number(u.rating))}</span>
-                )}
-              </div>
-              <div style={s.rowActions}>
-                <button style={s.btnAccept} onClick={() => respondRequest(u.id, 'accept')}>Accept</button>
-                <button style={s.btnReject} onClick={() => respondRequest(u.id, 'reject')}>Decline</button>
-              </div>
-            </div>
+            <UserRow key={u.id} name={u.display_name} rating={u.rating}>
+              <button onClick={() => respondRequest(u.id, 'accept')} className="btn-primary text-xs py-2 px-3.5">Accept</button>
+              <button onClick={() => respondRequest(u.id, 'reject')} className="btn-secondary text-xs">Decline</button>
+            </UserRow>
           ))}
         </section>
       )}
 
-      {/* ── Friends list ── */}
-      <section>
-        <h3 style={s.sectionTitle}>
-          {friends.length === 0 ? 'No friends yet' : `Friends (${friends.length})`}
-        </h3>
-        {friends.map((f) => (
-          <div key={f.id} style={s.row}>
-            <div style={s.userInfo}>
-              <span style={s.userName}>{f.display_name}</span>
-              {f.rating != null && (
-                <span style={s.userRating}>{Math.round(Number(f.rating))}</span>
-              )}
-            </div>
-            <div style={s.rowActions}>
-              <button style={s.btnChallenge} onClick={() => openChallenge(f)}>
-                Challenge
-              </button>
-              <button style={s.btnRemove} onClick={() => removeFriend(f.id, f.display_name)}>
-                Remove
-              </button>
-            </div>
-          </div>
+      {/* Friends list */}
+      <section className="flex flex-col gap-2">
+        <SectionTitle>
+          {friends.length === 0 ? 'No friends yet' : `Friends · ${friends.length}`}
+        </SectionTitle>
+        {friends.length === 0 ? (
+          <p className="font-body text-sm text-muted py-2">
+            Search for players below and send them a friend request.
+          </p>
+        ) : friends.map((f) => (
+          <UserRow key={f.id} name={f.display_name} rating={f.rating}>
+            <button
+              onClick={() => setChallenge({ friendId: f.id, friendName: f.display_name, timeControl: '10+0', invite: null })}
+              className="btn-primary text-xs py-2 px-3.5"
+            >
+              Challenge
+            </button>
+            <button
+              onClick={() => removeFriend(f.id, f.display_name)}
+              className="font-body text-xs font-medium text-muted underline underline-offset-[2px] bg-transparent border-0 cursor-pointer hover:text-danger transition-colors"
+            >
+              Remove
+            </button>
+          </UserRow>
         ))}
       </section>
 
-      {/* ── Search & add ── */}
-      <section>
-        <h3 style={s.sectionTitle}>Add a friend</h3>
-        <form onSubmit={handleSearch} style={s.searchRow}>
+      {/* Search */}
+      <section className="flex flex-col gap-2.5">
+        <SectionTitle>Add a friend</SectionTitle>
+        <form onSubmit={handleSearch} className="flex gap-2">
           <input
-            style={s.searchInput}
+            className="text-input"
             placeholder="Search by name or email…"
             value={searchQ}
             onChange={(e) => setSearchQ(e.target.value)}
           />
-          <button style={s.btnSearch} type="submit" disabled={searching}>
+          <button type="submit" disabled={searching} className="btn-primary text-sm py-2.5 px-5 whitespace-nowrap">
             {searching ? '…' : 'Search'}
           </button>
         </form>
 
-        {searchErr && <p style={s.errMsg}>{searchErr}</p>}
+        {searchErr && (
+          <p className="font-mono text-[0.8rem] text-danger bg-danger-bg rounded-xl px-3 py-2">{searchErr}</p>
+        )}
 
         {results.map((u) => (
-          <div key={u.id} style={s.row}>
-            <div style={s.userInfo}>
-              <span style={s.userName}>{u.display_name}</span>
-              <span style={s.userEmail}>{u.email}</span>
-            </div>
-            <button style={s.btnAccept} onClick={() => sendRequest(u.id, u.display_name)}>
-              Add
+          <UserRow key={u.id} name={u.display_name} sub={u.email}>
+            <button onClick={() => sendRequest(u.id, u.display_name)} className="btn-primary text-xs py-2 px-3.5">
+              Add friend
             </button>
-          </div>
+          </UserRow>
         ))}
 
         {results.length === 0 && searchQ.length >= 2 && !searching && !searchErr && (
-          <p style={s.empty}>No users found matching "{searchQ}".</p>
+          <p className="font-body text-sm text-muted italic">No users found for "{searchQ}".</p>
         )}
       </section>
     </div>
   );
 }
 
-const s = {
-  wrap: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '1.25rem',
-  },
-  empty: {
-    fontFamily: 'var(--font-body)',
-    fontSize: '0.875rem',
-    color: 'var(--on-surface-muted)',
-    margin: '0.5rem 0',
-  },
-  flash: {
-    fontFamily: 'var(--font-mono)',
-    fontSize: '0.8rem',
-    background: '#dcfce7',
-    color: '#15803d',
-    borderRadius: 'var(--radius-sm)',
-    padding: '0.5rem 0.75rem',
-  },
+function SectionTitle({ children }) {
+  return (
+    <h3 className="font-mono text-[0.68rem] font-semibold text-muted uppercase tracking-[0.08em]">
+      {children}
+    </h3>
+  );
+}
 
-  challengeBox: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '0.625rem',
-    background: 'var(--surface-lowest)',
-    borderRadius: 'var(--radius-md)',
-    padding: '1rem',
-    boxShadow: 'var(--ambient-shadow-raised)',
-  },
-  challengeTitle: {
-    fontFamily: 'var(--font-display)',
-    fontSize: '1rem',
-    fontWeight: 700,
-    color: 'var(--on-surface)',
-  },
-  challengeSub: {
-    fontFamily: 'var(--font-mono)',
-    fontSize: '0.75rem',
-    color: 'var(--on-surface-muted)',
-    letterSpacing: '0.02em',
-  },
-  select: {
-    fontFamily: 'var(--font-body)',
-    fontSize: '0.9375rem',
-    padding: '0.5rem 0.75rem',
-    borderRadius: 'var(--radius-sm)',
-    border: 'none',
-    background: 'var(--surface-high)',
-    color: 'var(--on-surface)',
-    width: '100%',
-  },
-
-  sectionTitle: {
-    fontFamily: 'var(--font-display)',
-    fontSize: '0.875rem',
-    fontWeight: 700,
-    color: 'var(--on-surface-muted)',
-    textTransform: 'uppercase',
-    letterSpacing: '0.05em',
-    margin: '0 0 0.5rem 0',
-  },
-  row: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: '0.5rem',
-    padding: '0.625rem 0.75rem',
-    borderRadius: 'var(--radius-sm)',
-    background: 'var(--surface-high)',
-    marginBottom: '0.375rem',
-  },
-  userInfo: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '0.1rem',
-    minWidth: 0,
-    flex: 1,
-  },
-  userName: {
-    fontFamily: 'var(--font-body)',
-    fontSize: '0.9375rem',
-    fontWeight: 600,
-    color: 'var(--on-surface)',
-  },
-  userRating: {
-    fontFamily: 'var(--font-mono)',
-    fontSize: '0.75rem',
-    color: 'var(--primary)',
-    fontWeight: 600,
-  },
-  userEmail: {
-    fontFamily: 'var(--font-mono)',
-    fontSize: '0.7rem',
-    color: 'var(--on-surface-muted)',
-  },
-  rowActions: {
-    display: 'flex',
-    gap: '0.375rem',
-    alignItems: 'center',
-  },
-  btnAccept: {
-    fontFamily: 'var(--font-body)',
-    fontSize: '0.8125rem',
-    fontWeight: 600,
-    padding: '0.3rem 0.75rem',
-    borderRadius: 'var(--radius-sm)',
-    border: 'none',
-    background: 'var(--primary-gradient)',
-    color: 'var(--on-primary)',
-    cursor: 'pointer',
-    whiteSpace: 'nowrap',
-  },
-  btnChallenge: {
-    fontFamily: 'var(--font-body)',
-    fontSize: '0.8125rem',
-    fontWeight: 600,
-    padding: '0.3rem 0.75rem',
-    borderRadius: 'var(--radius-sm)',
-    border: 'none',
-    background: 'var(--primary-gradient)',
-    color: 'var(--on-primary)',
-    cursor: 'pointer',
-    whiteSpace: 'nowrap',
-  },
-  btnReject: {
-    fontFamily: 'var(--font-body)',
-    fontSize: '0.8125rem',
-    fontWeight: 500,
-    padding: '0.3rem 0.75rem',
-    borderRadius: 'var(--radius-sm)',
-    border: 'none',
-    background: 'var(--surface-low)',
-    color: 'var(--on-surface-muted)',
-    cursor: 'pointer',
-    whiteSpace: 'nowrap',
-  },
-  btnRemove: {
-    fontFamily: 'var(--font-body)',
-    fontSize: '0.8125rem',
-    fontWeight: 500,
-    padding: '0.3rem 0.75rem',
-    borderRadius: 'var(--radius-sm)',
-    border: 'none',
-    background: 'none',
-    color: '#b91c1c',
-    cursor: 'pointer',
-    textDecoration: 'underline',
-    textUnderlineOffset: 2,
-  },
-  searchRow: {
-    display: 'flex',
-    gap: '0.5rem',
-    marginBottom: '0.5rem',
-  },
-  searchInput: {
-    flex: 1,
-    fontFamily: 'var(--font-body)',
-    fontSize: '0.875rem',
-    padding: '0.5rem 0.75rem',
-    borderRadius: 'var(--radius-sm)',
-    border: 'none',
-    background: 'var(--surface-high)',
-    color: 'var(--on-surface)',
-  },
-  btnSearch: {
-    fontFamily: 'var(--font-display)',
-    fontSize: '0.875rem',
-    fontWeight: 700,
-    padding: '0.5rem 1rem',
-    borderRadius: 'var(--radius-sm)',
-    border: 'none',
-    background: 'var(--primary-gradient)',
-    color: 'var(--on-primary)',
-    cursor: 'pointer',
-    whiteSpace: 'nowrap',
-  },
-  errMsg: {
-    fontFamily: 'var(--font-mono)',
-    fontSize: '0.8rem',
-    color: '#b91c1c',
-    margin: '0.25rem 0',
-  },
-};
+function UserRow({ name, rating, sub, children }) {
+  const initial = (name ?? '?')[0].toUpperCase();
+  return (
+    <div className="flex items-center justify-between gap-3 px-4 py-3 rounded-2xl bg-white border border-surface-high shadow-[0_1px_4px_rgba(0,0,0,0.04)]">
+      {/* Mini avatar + info */}
+      <div className="flex items-center gap-3 flex-1 min-w-0">
+        <div className="w-9 h-9 rounded-full bg-primary-gradient text-on-primary font-display font-bold text-sm flex items-center justify-center flex-shrink-0">
+          {initial}
+        </div>
+        <div className="flex flex-col gap-0 min-w-0">
+          <span className="font-body text-[0.9375rem] font-semibold text-on-surface truncate leading-tight">{name}</span>
+          {rating != null && (
+            <span className="font-mono text-[0.68rem] text-primary font-semibold">{Math.round(Number(rating))}</span>
+          )}
+          {sub && <span className="font-mono text-[0.68rem] text-muted truncate">{sub}</span>}
+        </div>
+      </div>
+      <div className="flex gap-1.5 items-center flex-shrink-0">{children}</div>
+    </div>
+  );
+}
