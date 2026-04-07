@@ -1,13 +1,16 @@
 import { useState, useEffect } from 'react';
 import { Board } from './Board.jsx';
+import { EvalBar } from './EvalBar.jsx';
 import { apiFetch } from '../api.js';
 import { identifyOpening } from '../utils/openings.js';
+import { useStockfish } from '../hooks/useStockfish.js';
 
 export function GameReview({ gameId, token, onClose, inline = false }) {
   const [data, setData]       = useState(null);
   const [cursor, setCursor]   = useState(0); // 0 = start, n = after move n
   const [loading, setLoading] = useState(true);
   const [error, setError]     = useState('');
+  const { analyze, evaluation, ready: sfReady } = useStockfish();
 
   useEffect(() => {
     setLoading(true); setError(''); setData(null); setCursor(0);
@@ -15,6 +18,13 @@ export function GameReview({ gameId, token, onClose, inline = false }) {
       .then((d) => { setData(d); setLoading(false); })
       .catch((e) => { setError(e.message); setLoading(false); });
   }, [gameId, token]);
+
+  // Trigger Stockfish analysis whenever the position changes (inline/page mode only)
+  useEffect(() => {
+    if (!inline || !sfReady || !data) return;
+    const currentFen = cursor === 0 ? 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1' : data.moves[cursor - 1].fen;
+    analyze(currentFen);
+  }, [cursor, sfReady, data, inline, analyze]);
 
   // Keyboard navigation
   useEffect(() => {
@@ -118,8 +128,14 @@ export function GameReview({ gameId, token, onClose, inline = false }) {
           <>
             <div className="mb-6">{gameInfo}</div>
             <div className="grid grid-cols-12 gap-6">
-              <div className="col-span-12 lg:col-span-7 flex flex-col items-center gap-4">
-                {boardAndNav}
+              <div className="col-span-12 lg:col-span-7 flex gap-3 items-start">
+                {/* Eval bar */}
+                <div className="flex-shrink-0 self-stretch">
+                  <EvalBar evaluation={evaluation} orientation="white" />
+                </div>
+                <div className="flex flex-col items-center gap-4 flex-1">
+                  {boardAndNav}
+                </div>
               </div>
               <div className="col-span-12 lg:col-span-5 min-h-0">
                 {moveList}
