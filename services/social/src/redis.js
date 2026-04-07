@@ -9,3 +9,4 @@ export const publisher = new Redis(process.env.REDIS_URL);
 export const createSubscriber = () => new Redis(process.env.REDIS_URL);
 
 export const inviteChannel = (token) => `invite:${token}:accepted`;
+export const userNotifChannel = (userId) => `user:${userId}:notifications`;

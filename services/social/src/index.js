@@ -4,6 +4,7 @@ import { requireAuth } from './middleware/auth.js';
 import friendsRouter from './routes/friends.js';
 import invitesRouter from './routes/invites.js';
 import historyRouter from './routes/history.js';
+import notificationsRouter from './routes/notifications.js';
 import { startRatingUpdater } from './ratingUpdater.js';
 
 const app = express();
@@ -19,6 +20,7 @@ app.get('/health', (_req, res) => res.json({ status: 'ok', service: 'social' }))
 app.use('/friends', requireAuth, friendsRouter);
 app.use('/invites', requireAuth, invitesRouter);
 app.use('/history', requireAuth, historyRouter);
+app.use('/notifications', requireAuth, notificationsRouter);
 
 // ── 404 ───────────────────────────────────────────────────────────────────────
 app.use((_req, res) => res.status(404).json({ error: 'Not found' }));

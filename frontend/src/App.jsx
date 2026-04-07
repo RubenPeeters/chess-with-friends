@@ -5,6 +5,7 @@ import { ProfilePanel } from './components/ProfilePanel.jsx';
 import { HistoryPanel } from './components/HistoryPanel.jsx';
 import { FriendsPanel } from './components/FriendsPanel.jsx';
 import { useGameSocket } from './hooks/useGameSocket.js';
+import { useNotifications } from './hooks/useNotifications.js';
 import { apiFetch } from './api.js';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -57,6 +58,8 @@ export default function App() {
 
   const { gameState, sendMove, sendResign, sendDrawOffer, sendDrawAccept, connected } =
     useGameSocket(gameId, token);
+
+  const { notifications, dismiss } = useNotifications(token);
 
   // Derive user info from JWT
   const jwtPayload = token ? parseJwt(token) : null;
@@ -206,6 +209,16 @@ export default function App() {
     return () => es.close();
   }, [createdInvite?.token, token]);
 
+  async function acceptChallenge(notif) {
+    dismiss(notif.id);
+    try {
+      await acceptInvite(notif.invite_token);
+    } catch (err) {
+      // Invite may have expired — silently ignore
+      console.warn('Failed to accept challenge:', err.message);
+    }
+  }
+
   function handleCopyLink() {
     if (!createdInvite) return;
     const link = `${location.origin}/play/${createdInvite.token}`;
@@ -284,6 +297,24 @@ export default function App() {
       </div>
     );
   }
+
+  /* Incoming challenge notifications — shown on all post-auth screens */
+  const challengeBanner = notifications.length > 0 && (
+    <div style={s.notifStack}>
+      {notifications.map((n) => (
+        <div key={n.id} style={s.notifCard}>
+          <div style={s.notifBody}>
+            <span style={s.notifTitle}>{n.from_name} challenged you!</span>
+            <span style={s.notifSub}>{n.time_control} · Accept to start</span>
+          </div>
+          <div style={s.notifActions}>
+            <button style={s.notifAccept} onClick={() => acceptChallenge(n)}>Accept</button>
+            <button style={s.notifDismiss} onClick={() => dismiss(n.id)}>✕</button>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
 
   /* Lobby screen */
   if (!gameId) {
@@ -399,6 +430,7 @@ export default function App() {
             )}
           </div>
         </div>
+        {challengeBanner}
       </div>
     );
   }
@@ -485,6 +517,7 @@ export default function App() {
           </div>
         </div>
       )}
+      {challengeBanner}
     </div>
   );
 }
@@ -818,5 +851,73 @@ const s = {
     fontFamily: 'var(--font-body)',
     fontSize: '0.9375rem',
     color: 'var(--on-surface-muted)',
+  },
+
+  // ── Notifications ─────────────────────────────────────────────────────────
+  notifStack: {
+    position: 'fixed',
+    bottom: '1.5rem',
+    right: '1.5rem',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '0.5rem',
+    zIndex: 200,
+    maxWidth: 340,
+  },
+  notifCard: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.75rem',
+    background: 'var(--surface-lowest)',
+    borderRadius: 'var(--radius-md)',
+    padding: '0.875rem 1rem',
+    boxShadow: '0 8px 32px rgba(25,28,30,0.12)',
+  },
+  notifBody: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '0.125rem',
+    flex: 1,
+    minWidth: 0,
+  },
+  notifTitle: {
+    fontFamily: 'var(--font-display)',
+    fontSize: '0.9375rem',
+    fontWeight: 700,
+    color: 'var(--on-surface)',
+  },
+  notifSub: {
+    fontFamily: 'var(--font-mono)',
+    fontSize: '0.7rem',
+    color: 'var(--on-surface-muted)',
+    letterSpacing: '0.02em',
+  },
+  notifActions: {
+    display: 'flex',
+    gap: '0.375rem',
+    alignItems: 'center',
+    flexShrink: 0,
+  },
+  notifAccept: {
+    fontFamily: 'var(--font-display)',
+    fontSize: '0.8125rem',
+    fontWeight: 700,
+    padding: '0.4rem 0.875rem',
+    borderRadius: 'var(--radius-sm)',
+    border: 'none',
+    background: 'var(--primary-gradient)',
+    color: 'var(--on-primary)',
+    cursor: 'pointer',
+    whiteSpace: 'nowrap',
+  },
+  notifDismiss: {
+    fontFamily: 'var(--font-mono)',
+    fontSize: '0.75rem',
+    padding: '0.4rem 0.5rem',
+    borderRadius: 'var(--radius-sm)',
+    border: 'none',
+    background: 'var(--surface-high)',
+    color: 'var(--on-surface-muted)',
+    cursor: 'pointer',
   },
 };

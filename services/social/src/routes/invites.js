@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import pool from '../db.js';
-import { publisher, createSubscriber, inviteChannel } from '../redis.js';
+import { publisher, createSubscriber, inviteChannel, userNotifChannel } from '../redis.js';
 
 const router = Router();
 
@@ -23,6 +23,26 @@ router.post('/', async (req, res) => {
       [token, req.user.id, time_control, colour, addressee_id]
     );
     const invite = rows[0];
+
+    // If this is a direct challenge, notify the recipient immediately
+    if (addressee_id) {
+      const { rows: senderRows } = await pool.query(
+        `SELECT display_name FROM users WHERE id = $1`,
+        [req.user.id]
+      );
+      const senderName = senderRows[0]?.display_name ?? 'Someone';
+      await publisher.publish(
+        userNotifChannel(addressee_id),
+        JSON.stringify({
+          type: 'challenge',
+          invite_token: invite.token,
+          from_name: senderName,
+          from_id: req.user.id,
+          time_control: invite.time_control,
+        })
+      );
+    }
+
     res.status(201).json({
       ...invite,
       invite_path: `/play/${invite.token}`,
