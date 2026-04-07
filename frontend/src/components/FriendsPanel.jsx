@@ -1,13 +1,23 @@
 import { useState, useEffect, useCallback } from 'react';
 import { apiFetch } from '../api.js';
 
+const TIME_CONTROLS = [
+  { value: '1+0',   label: 'Bullet 1 min' },
+  { value: '3+0',   label: 'Blitz 3 min' },
+  { value: '3+2',   label: 'Blitz 3+2' },
+  { value: '5+0',   label: 'Blitz 5 min' },
+  { value: '10+0',  label: 'Rapid 10 min' },
+  { value: '15+10', label: 'Rapid 15+10' },
+  { value: '30+0',  label: 'Classical 30 min' },
+];
+
 /**
  * Friends panel:
- *  • Current friends list with ratings
+ *  • Current friends list with ratings + inline challenge flow
  *  • Incoming pending requests (accept / reject)
  *  • Search-and-add by display name or email
  */
-export function FriendsPanel({ token }) {
+export function FriendsPanel({ token, onChallengeAccepted }) {
   const [friends, setFriends]     = useState([]);
   const [pending, setPending]     = useState([]);
   const [searchQ, setSearchQ]     = useState('');
@@ -16,6 +26,10 @@ export function FriendsPanel({ token }) {
   const [searchErr, setSearchErr] = useState('');
   const [actionMsg, setActionMsg] = useState('');
   const [loading, setLoading]     = useState(true);
+
+  // Challenge state: { friendId, friendName, timeControl, invite } | null
+  const [challenge, setChallenge] = useState(null);
+  const [challenging, setChallenging] = useState(false);
 
   const refresh = useCallback(async () => {
     if (!token) return;
@@ -34,6 +48,50 @@ export function FriendsPanel({ token }) {
   }, [token]);
 
   useEffect(() => { refresh(); }, [refresh]);
+
+  // ── SSE: watch for challenge acceptance ──────────────────────────────────────
+  useEffect(() => {
+    if (!challenge?.invite || !token) return;
+
+    const url = `/api/social/invites/${challenge.invite.token}/watch?token=${encodeURIComponent(token)}`;
+    const es = new EventSource(url);
+
+    es.addEventListener('accepted', (e) => {
+      const data = JSON.parse(e.data);
+      es.close();
+      setChallenge(null);
+      onChallengeAccepted?.(data);
+    });
+
+    es.onerror = () => es.close();
+    return () => es.close();
+  }, [challenge?.invite?.token, token, onChallengeAccepted]);
+
+  async function openChallenge(friend) {
+    setChallenge({ friendId: friend.id, friendName: friend.display_name, timeControl: '10+0', invite: null });
+  }
+
+  async function sendChallenge() {
+    if (!challenge) return;
+    setChallenging(true);
+    try {
+      const invite = await apiFetch('/api/social/invites', {
+        method: 'POST',
+        token,
+        body: JSON.stringify({
+          time_control: challenge.timeControl,
+          colour: 'random',
+          addressee_id: challenge.friendId,
+        }),
+      });
+      setChallenge((prev) => ({ ...prev, invite }));
+    } catch (err) {
+      flash(err.message);
+      setChallenge(null);
+    } finally {
+      setChallenging(false);
+    }
+  }
 
   async function handleSearch(e) {
     e.preventDefault();
@@ -106,7 +164,41 @@ export function FriendsPanel({ token }) {
       {/* Flash message */}
       {actionMsg && <div style={s.flash}>{actionMsg}</div>}
 
-      {/* Pending requests */}
+      {/* ── Challenge modal ── */}
+      {challenge && (
+        <div style={s.challengeBox}>
+          {challenge.invite ? (
+            /* Waiting for friend to accept */
+            <>
+              <span style={s.challengeTitle}>Challenge sent to {challenge.friendName}</span>
+              <span style={s.challengeSub}>Waiting for them to accept…</span>
+              <button style={s.btnReject} onClick={() => setChallenge(null)}>Cancel</button>
+            </>
+          ) : (
+            /* Pick time control and send */
+            <>
+              <span style={s.challengeTitle}>Challenge {challenge.friendName}</span>
+              <select
+                style={s.select}
+                value={challenge.timeControl}
+                onChange={(e) => setChallenge((prev) => ({ ...prev, timeControl: e.target.value }))}
+              >
+                {TIME_CONTROLS.map((tc) => (
+                  <option key={tc.value} value={tc.value}>{tc.label}</option>
+                ))}
+              </select>
+              <div style={s.rowActions}>
+                <button style={s.btnAccept} onClick={sendChallenge} disabled={challenging}>
+                  {challenging ? 'Sending…' : 'Send challenge'}
+                </button>
+                <button style={s.btnReject} onClick={() => setChallenge(null)}>Cancel</button>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* ── Pending requests ── */}
       {pending.length > 0 && (
         <section>
           <h3 style={s.sectionTitle}>Pending requests</h3>
@@ -127,7 +219,7 @@ export function FriendsPanel({ token }) {
         </section>
       )}
 
-      {/* Friends list */}
+      {/* ── Friends list ── */}
       <section>
         <h3 style={s.sectionTitle}>
           {friends.length === 0 ? 'No friends yet' : `Friends (${friends.length})`}
@@ -140,17 +232,19 @@ export function FriendsPanel({ token }) {
                 <span style={s.userRating}>{Math.round(Number(f.rating))}</span>
               )}
             </div>
-            <button
-              style={s.btnRemove}
-              onClick={() => removeFriend(f.id, f.display_name)}
-            >
-              Remove
-            </button>
+            <div style={s.rowActions}>
+              <button style={s.btnChallenge} onClick={() => openChallenge(f)}>
+                Challenge
+              </button>
+              <button style={s.btnRemove} onClick={() => removeFriend(f.id, f.display_name)}>
+                Remove
+              </button>
+            </div>
           </div>
         ))}
       </section>
 
-      {/* Search & add */}
+      {/* ── Search & add ── */}
       <section>
         <h3 style={s.sectionTitle}>Add a friend</h3>
         <form onSubmit={handleSearch} style={s.searchRow}>
@@ -173,10 +267,7 @@ export function FriendsPanel({ token }) {
               <span style={s.userName}>{u.display_name}</span>
               <span style={s.userEmail}>{u.email}</span>
             </div>
-            <button
-              style={s.btnAccept}
-              onClick={() => sendRequest(u.id, u.display_name)}
-            >
+            <button style={s.btnAccept} onClick={() => sendRequest(u.id, u.display_name)}>
               Add
             </button>
           </div>
@@ -210,6 +301,39 @@ const s = {
     borderRadius: 'var(--radius-sm)',
     padding: '0.5rem 0.75rem',
   },
+
+  challengeBox: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '0.625rem',
+    background: 'var(--surface-lowest)',
+    borderRadius: 'var(--radius-md)',
+    padding: '1rem',
+    boxShadow: 'var(--ambient-shadow-raised)',
+  },
+  challengeTitle: {
+    fontFamily: 'var(--font-display)',
+    fontSize: '1rem',
+    fontWeight: 700,
+    color: 'var(--on-surface)',
+  },
+  challengeSub: {
+    fontFamily: 'var(--font-mono)',
+    fontSize: '0.75rem',
+    color: 'var(--on-surface-muted)',
+    letterSpacing: '0.02em',
+  },
+  select: {
+    fontFamily: 'var(--font-body)',
+    fontSize: '0.9375rem',
+    padding: '0.5rem 0.75rem',
+    borderRadius: 'var(--radius-sm)',
+    border: 'none',
+    background: 'var(--surface-high)',
+    color: 'var(--on-surface)',
+    width: '100%',
+  },
+
   sectionTitle: {
     fontFamily: 'var(--font-display)',
     fontSize: '0.875rem',
@@ -256,8 +380,21 @@ const s = {
   rowActions: {
     display: 'flex',
     gap: '0.375rem',
+    alignItems: 'center',
   },
   btnAccept: {
+    fontFamily: 'var(--font-body)',
+    fontSize: '0.8125rem',
+    fontWeight: 600,
+    padding: '0.3rem 0.75rem',
+    borderRadius: 'var(--radius-sm)',
+    border: 'none',
+    background: 'var(--primary-gradient)',
+    color: 'var(--on-primary)',
+    cursor: 'pointer',
+    whiteSpace: 'nowrap',
+  },
+  btnChallenge: {
     fontFamily: 'var(--font-body)',
     fontSize: '0.8125rem',
     fontWeight: 600,

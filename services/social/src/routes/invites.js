@@ -6,16 +6,21 @@ import { publisher, createSubscriber, inviteChannel } from '../redis.js';
 const router = Router();
 
 // ── POST /invites — create a shareable game invite link ───────────────────────
+// Optionally accepts `addressee_id` to pre-address the invite to a specific user.
 router.post('/', async (req, res) => {
-  const { time_control = '10+0', colour = 'random' } = req.body;
+  const { time_control = '10+0', colour = 'random', addressee_id = null } = req.body;
+
+  if (addressee_id && addressee_id === req.user.id) {
+    return res.status(400).json({ error: 'Cannot challenge yourself' });
+  }
 
   try {
     const token = uuidv4();
     const { rows } = await pool.query(
-      `INSERT INTO invites (token, creator_id, time_control, creator_colour, expires_at)
-       VALUES ($1, $2, $3, $4, NOW() + INTERVAL '24 hours')
-       RETURNING token, time_control, creator_colour, expires_at`,
-      [token, req.user.id, time_control, colour]
+      `INSERT INTO invites (token, creator_id, time_control, creator_colour, addressee_id, expires_at)
+       VALUES ($1, $2, $3, $4, $5, NOW() + INTERVAL '24 hours')
+       RETURNING token, time_control, creator_colour, addressee_id, expires_at`,
+      [token, req.user.id, time_control, colour, addressee_id]
     );
     const invite = rows[0];
     res.status(201).json({
@@ -123,6 +128,10 @@ router.post('/:token/accept', async (req, res) => {
     if (invite.creator_id === req.user.id) {
       await client.query('ROLLBACK');
       return res.status(400).json({ error: 'Cannot accept your own invite' });
+    }
+    if (invite.addressee_id && invite.addressee_id !== req.user.id) {
+      await client.query('ROLLBACK');
+      return res.status(403).json({ error: 'This invite is for someone else' });
     }
 
     // Assign colours
