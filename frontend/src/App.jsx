@@ -65,7 +65,6 @@ export default function App() {
   const [drawOfferDismissed, setDrawOfferDismissed] = useState(null);
   const [viewingGameId, setViewingGameId]           = useState(null);
   const [viewingPlayerId, setViewingPlayerId]       = useState(null);
-  const [showLeaderboard, setShowLeaderboard]       = useState(false);
 
   const { gameState, sendMove, sendResign, sendDrawOffer, sendDrawAccept, connected } =
     useGameSocket(gameId, token);
@@ -346,9 +345,10 @@ export default function App() {
 
   if (!gameId) {
     const NAV_ITEMS = [
-      { key: 'play',    icon: '♟', label: 'Play' },
-      { key: 'history', icon: '◈', label: 'History' },
-      { key: 'friends', icon: '◎', label: 'Friends' },
+      { key: 'play',        icon: '♟', label: 'Play' },
+      { key: 'history',     icon: '◈', label: 'History' },
+      { key: 'friends',     icon: '◎', label: 'Friends' },
+      { key: 'leaderboard', icon: '🏆', label: 'Leaderboard' },
     ];
 
     return (
@@ -392,13 +392,6 @@ export default function App() {
                 <span className="font-body text-xs font-semibold uppercase tracking-[0.07em]">{label}</span>
               </button>
             ))}
-            <button
-              onClick={() => setShowLeaderboard(true)}
-              className="flex items-center gap-3 py-3 px-3 rounded-xl text-left w-full transition-all duration-150 border-0 cursor-pointer bg-transparent text-muted hover:bg-black/[0.05] hover:text-on-surface"
-            >
-              <span className="w-5 text-center text-base leading-none flex-shrink-0">🏆</span>
-              <span className="font-body text-xs font-semibold uppercase tracking-[0.07em]">Leaderboard</span>
-            </button>
           </nav>
 
           {/* Sign out */}
@@ -418,25 +411,60 @@ export default function App() {
 
           {/* Top header */}
           <header className="sticky top-0 z-30 bg-[#f1f2f4]/80 backdrop-blur-xl border-b border-black/[0.06] px-10 py-4 flex items-center justify-between">
-            <h1 className="font-display font-extrabold text-xl tracking-[-0.025em] text-on-surface">
-              {lobbyTab === 'play' && <>Welcome back, <span className="text-primary">{user?.display_name?.split(' ')[0]}</span>.</>}
-              {lobbyTab === 'history' && 'Match History'}
-              {lobbyTab === 'friends' && 'Friends'}
-            </h1>
-            <button
-              onClick={handleCreateInvite}
-              disabled={creatingInvite}
-              className="flex items-center gap-1.5 bg-primary text-on-primary rounded-full px-5 py-2.5 font-display font-bold text-sm border-0 cursor-pointer hover:opacity-90 active:scale-[0.97] transition-all shadow-lg shadow-primary/20 disabled:opacity-50"
-            >
-              <span className="text-lg leading-none">+</span> New Game
-            </button>
+            <div className="flex items-center gap-3">
+              {viewingGameId && (
+                <button
+                  onClick={() => setViewingGameId(null)}
+                  className="font-body text-sm text-muted hover:text-on-surface bg-transparent border-0 cursor-pointer transition-colors flex items-center gap-1.5"
+                >
+                  ← Back
+                </button>
+              )}
+              <h1 className="font-display font-extrabold text-xl tracking-[-0.025em] text-on-surface">
+                {viewingGameId                  ? 'Game Analysis'
+                  : lobbyTab === 'play'         ? <>Welcome back, <span className="text-primary">{user?.display_name?.split(' ')[0]}</span>.</>
+                  : lobbyTab === 'history'      ? 'Match History'
+                  : lobbyTab === 'friends'      ? 'Friends'
+                  : lobbyTab === 'leaderboard'  ? 'Leaderboard'
+                  : null}
+              </h1>
+            </div>
+            {!viewingGameId && (
+              <button
+                onClick={handleCreateInvite}
+                disabled={creatingInvite}
+                className="flex items-center gap-1.5 bg-primary text-on-primary rounded-full px-5 py-2.5 font-display font-bold text-sm border-0 cursor-pointer hover:opacity-90 active:scale-[0.97] transition-all shadow-lg shadow-primary/20 disabled:opacity-50"
+              >
+                <span className="text-lg leading-none">+</span> New Game
+              </button>
+            )}
           </header>
 
           {/* Content */}
           <main className="flex-1 px-10 py-8 overflow-y-auto">
 
+            {/* ── Game analysis page ── */}
+            {viewingGameId && (
+              <GameReview
+                gameId={viewingGameId}
+                token={token}
+                onClose={() => setViewingGameId(null)}
+                inline
+              />
+            )}
+
+            {/* ── Leaderboard page ── */}
+            {!viewingGameId && lobbyTab === 'leaderboard' && (
+              <Leaderboard
+                token={token}
+                onClose={() => setLobbyTab('play')}
+                onViewProfile={setViewingPlayerId}
+                inline
+              />
+            )}
+
             {/* ── Play tab ── */}
-            {lobbyTab === 'play' && (
+            {!viewingGameId && lobbyTab === 'play' && (
               <div className="max-w-[1100px] mx-auto grid grid-cols-12 gap-6">
 
                 {/* Match card */}
@@ -481,13 +509,13 @@ export default function App() {
                               key={key}
                               onClick={() => setTimeControl(tc)}
                               className={[
-                                'flex flex-col gap-2.5 p-4 rounded-xl text-left border-2 transition-all duration-150 cursor-pointer',
+                                'flex flex-col gap-2.5 p-4 rounded-lg text-left border-2 transition-all duration-150 cursor-pointer',
                                 active
-                                  ? 'bg-primary border-primary text-on-primary shadow-lg shadow-primary/25 -translate-y-0.5'
-                                  : 'bg-[#f1f2f4] border-transparent hover:border-primary/20 hover:bg-primary/5 hover:-translate-y-0.5',
+                                  ? 'bg-primary border-primary text-on-primary shadow-md shadow-primary/20'
+                                  : 'bg-[#f1f2f4] border-transparent hover:border-primary/25 hover:bg-white',
                               ].join(' ')}
                             >
-                              <span className="text-2xl leading-none">{icon}</span>
+                              <span className="text-xl leading-none">{icon}</span>
                               <div>
                                 <p className={`font-display font-bold text-sm ${active ? 'text-on-primary' : 'text-on-surface'}`}>{label}</p>
                                 <p className={`font-mono text-[0.62rem] mt-0.5 ${active ? 'text-on-primary/70' : 'text-muted'}`}>{sub}</p>
@@ -565,7 +593,7 @@ export default function App() {
             )}
 
             {/* ── History tab ── */}
-            {lobbyTab === 'history' && (
+            {!viewingGameId && lobbyTab === 'history' && (
               <div className="max-w-2xl mx-auto">
                 <HistoryPanel
                   token={token}
@@ -577,7 +605,7 @@ export default function App() {
             )}
 
             {/* ── Friends tab ── */}
-            {lobbyTab === 'friends' && (
+            {!viewingGameId && lobbyTab === 'friends' && (
               <div className="max-w-2xl mx-auto">
                 <FriendsPanel
                   token={token}
@@ -593,22 +621,12 @@ export default function App() {
 
         {challengeBanner}
 
-        {viewingGameId && (
-          <GameReview gameId={viewingGameId} token={token} onClose={() => setViewingGameId(null)} />
-        )}
         {viewingPlayerId && (
           <PlayerProfile
             userId={viewingPlayerId}
             token={token}
             onClose={() => setViewingPlayerId(null)}
             onViewGame={(id) => { setViewingPlayerId(null); setViewingGameId(id); }}
-          />
-        )}
-        {showLeaderboard && (
-          <Leaderboard
-            token={token}
-            onClose={() => setShowLeaderboard(false)}
-            onViewProfile={(id) => { setShowLeaderboard(false); setViewingPlayerId(id); }}
           />
         )}
       </div>
