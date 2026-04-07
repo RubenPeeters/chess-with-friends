@@ -82,10 +82,24 @@ router.post('/request', async (req, res) => {
   if (addressee_id === req.user.id) return res.status(400).json({ error: 'Cannot friend yourself' });
 
   try {
+    // Check for any existing relationship in either direction
+    const { rows } = await pool.query(
+      `SELECT status FROM friendships
+       WHERE (requester_id = $1 AND addressee_id = $2)
+          OR (requester_id = $2 AND addressee_id = $1)
+       LIMIT 1`,
+      [req.user.id, addressee_id]
+    );
+
+    if (rows.length > 0) {
+      const { status } = rows[0];
+      if (status === 'accepted') return res.status(409).json({ error: 'Already friends' });
+      if (status === 'pending')  return res.status(409).json({ error: 'Friend request already pending' });
+    }
+
     await pool.query(
       `INSERT INTO friendships (requester_id, addressee_id, status)
-       VALUES ($1, $2, 'pending')
-       ON CONFLICT (requester_id, addressee_id) DO NOTHING`,
+       VALUES ($1, $2, 'pending')`,
       [req.user.id, addressee_id]
     );
     res.status(201).json({ message: 'Friend request sent' });
@@ -103,19 +117,40 @@ router.patch('/request/:requesterId', async (req, res) => {
   }
 
   const newStatus = action === 'accept' ? 'accepted' : 'rejected';
+  const client = await pool.connect();
 
   try {
-    const { rowCount } = await pool.query(
+    await client.query('BEGIN');
+
+    const { rowCount } = await client.query(
       `UPDATE friendships
        SET status = $1
        WHERE requester_id = $2 AND addressee_id = $3 AND status = 'pending'`,
       [newStatus, req.params.requesterId, req.user.id]
     );
-    if (rowCount === 0) return res.status(404).json({ error: 'Pending request not found' });
+    if (rowCount === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Pending request not found' });
+    }
+
+    // If accepting, delete any reverse pending request to prevent duplicates
+    // (both users sent requests simultaneously)
+    if (action === 'accept') {
+      await client.query(
+        `DELETE FROM friendships
+         WHERE requester_id = $1 AND addressee_id = $2 AND status = 'pending'`,
+        [req.user.id, req.params.requesterId]
+      );
+    }
+
+    await client.query('COMMIT');
     res.json({ message: `Request ${action}ed` });
   } catch (err) {
+    await client.query('ROLLBACK');
     console.error(err);
     res.status(500).json({ error: 'Internal server error' });
+  } finally {
+    client.release();
   }
 });
 
