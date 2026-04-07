@@ -6,6 +6,7 @@ import pg from 'pg';
 import { Room } from './room.js';
 import { handleMove } from './moveHandler.js';
 import { publishGameFinished } from './publisher.js';
+import { stopClocks } from './clockManager.js';
 
 const PORT = process.env.PORT || 4000;
 const { Pool } = pg;
@@ -83,6 +84,10 @@ wss.on('connection', (ws, req) => {
 
       case 'draw_offer':
         await handleDrawOffer(ws, msg);
+        break;
+
+      case 'draw_accept':
+        await handleDrawAccept(ws, msg);
         break;
 
       default:
@@ -179,8 +184,34 @@ async function handleDrawOffer(ws, { gameId }) {
   const room = rooms.get(gameId);
   const colour = room.playerColour(ws);
   if (!colour) return;
-  // Broadcast offer to opponent — client decides to accept and sends back draw_accept
+  // Broadcast offer to both sides — opponent sees the dialog, sender sees their own offer
   room.broadcast({ type: 'draw_offer', from: colour });
+}
+
+async function handleDrawAccept(ws, { gameId }) {
+  if (!gameId || !rooms.has(gameId)) return;
+  const room = rooms.get(gameId);
+  const colour = room.playerColour(ws);
+  if (!colour) return;
+
+  const { rowCount } = await pgPool.query(
+    `UPDATE games SET status='finished', result='draw', ended_at=NOW()
+     WHERE id=$1 AND status='active'`,
+    [gameId]
+  );
+
+  // If rowCount is 0 the game was already finished (race condition guard)
+  if (rowCount === 0) return;
+
+  await stopClocks(redis, gameId);
+  room.broadcast({ type: 'game_over', result: 'draw', reason: 'agreement' });
+  await publishGameFinished({
+    gameId,
+    result: 'draw',
+    reason: 'agreement',
+    whiteId: room.whiteId,
+    blackId: room.blackId,
+  });
 }
 
 // ── Heartbeat ─────────────────────────────────────────────────────────────────

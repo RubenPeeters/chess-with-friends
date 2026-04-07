@@ -154,5 +154,12 @@ export function useGameSocket(gameId, token) {
     }
   }, [gameId]);
 
-  return { gameState, sendMove, sendResign, sendDrawOffer, connected };
+  const sendDrawAccept = useCallback(() => {
+    const ws = wsRef.current;
+    if (ws?.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ type: 'draw_accept', gameId }));
+    }
+  }, [gameId]);
+
+  return { gameState, sendMove, sendResign, sendDrawOffer, sendDrawAccept, connected };
 }

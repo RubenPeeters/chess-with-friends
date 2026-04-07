@@ -43,6 +43,9 @@ export default function App() {
   // Lobby tab
   const [lobbyTab, setLobbyTab]   = useState('play'); // 'play' | 'history' | 'friends'
 
+  // Draw offer — track locally dismissed offers so the dialog can be closed
+  const [drawOfferDismissed, setDrawOfferDismissed] = useState(null);
+
   // Lobby — play tab
   const [lobbyError, setLobbyError]     = useState('');
   const [createdInvite, setCreatedInvite] = useState(null);
@@ -52,7 +55,7 @@ export default function App() {
   const [joiningGame, setJoiningGame]   = useState(false);
   const [copied, setCopied]             = useState(false);
 
-  const { gameState, sendMove, sendResign, sendDrawOffer, connected } =
+  const { gameState, sendMove, sendResign, sendDrawOffer, sendDrawAccept, connected } =
     useGameSocket(gameId, token);
 
   // Derive user info from JWT
@@ -60,6 +63,15 @@ export default function App() {
   const user = jwtPayload
     ? { id: jwtPayload.sub, email: jwtPayload.email, display_name: jwtPayload.display_name ?? jwtPayload.email?.split('@')[0] }
     : null;
+
+  // Reset dismissed state when a fresh draw offer arrives
+  const { drawOffer: latestDrawOffer } = gameState;
+  useEffect(() => {
+    if (latestDrawOffer && latestDrawOffer !== drawOfferDismissed) {
+      setDrawOfferDismissed(null);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [latestDrawOffer]);
 
   // Already logged in + landed on /play/:token → accept immediately
   useEffect(() => {
@@ -376,7 +388,14 @@ export default function App() {
             )}
 
             {lobbyTab === 'friends' && (
-              <FriendsPanel token={token} />
+              <FriendsPanel
+                token={token}
+                onChallengeAccepted={({ game_id, white_id }) => {
+                  const userId = parseJwt(token)?.sub;
+                  setPlayerColour(white_id === userId ? 'white' : 'black');
+                  setGameId(game_id);
+                }}
+              />
             )}
           </div>
         </div>
@@ -434,12 +453,20 @@ export default function App() {
         </div>
       </main>
 
-      {drawOffer && !gameOver && drawOffer !== playerColour && (
+      {drawOffer && !gameOver && drawOffer !== playerColour && drawOffer !== drawOfferDismissed && (
         <div style={s.glassOverlay}>
           <div style={s.glassCard}>
             <h3 style={s.glassHeading}>Draw offered</h3>
             <p style={s.glassSub}>Your opponent is offering a draw.</p>
-            <button style={s.btnPrimary} onClick={() => sendDrawOffer()}>Accept draw</button>
+            <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.5rem' }}>
+              <button style={s.btnPrimary} onClick={sendDrawAccept}>Accept</button>
+              <button
+                style={{ ...s.btnTertiary, alignSelf: 'center' }}
+                onClick={() => setDrawOfferDismissed(drawOffer)}
+              >
+                Decline
+              </button>
+            </div>
           </div>
         </div>
       )}
