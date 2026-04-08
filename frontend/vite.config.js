@@ -30,9 +30,19 @@ function stockfishAssets() {
     'nn-5af11540bbfe.nnue',
   ];
 
-  function copy() {
+  /**
+   * @param {{ strict: boolean }} opts
+   *   `strict: true` throws on missing files (used by `buildStart` so a
+   *   broken production build fails fast instead of shipping a `dist/`
+   *   without the engine). `strict: false` only warns (used by
+   *   `configResolved` in dev so a still-installing node_modules doesn't
+   *   block the dev server from starting).
+   */
+  function copy({ strict }) {
     if (!fs.existsSync(srcDir)) {
-      console.warn('[stockfish-assets] node_modules/stockfish not found — run `npm install`');
+      const msg = `[stockfish-assets] node_modules/stockfish not found at ${srcDir} — run \`npm install\``;
+      if (strict) throw new Error(msg);
+      console.warn(msg);
       return;
     }
     fs.mkdirSync(destDir, { recursive: true });
@@ -40,7 +50,9 @@ function stockfishAssets() {
       const from = path.join(srcDir, f);
       const to = path.join(destDir, f);
       if (!fs.existsSync(from)) {
-        console.warn(`[stockfish-assets] missing source: ${from}`);
+        const msg = `[stockfish-assets] missing source file: ${from}`;
+        if (strict) throw new Error(msg);
+        console.warn(msg);
         continue;
       }
       // Skip if already up-to-date (same size + mtime) — avoids re-copying the
@@ -57,8 +69,12 @@ function stockfishAssets() {
 
   return {
     name: 'stockfish-assets',
-    buildStart: copy,
-    configResolved: copy,
+    // Production builds must fail hard if the engine is missing — better
+    // than silently shipping a `dist/` with a broken review screen.
+    buildStart() { copy({ strict: true }); },
+    // Dev startup is lenient: a partially installed node_modules shouldn't
+    // prevent `npm run dev` from coming up.
+    configResolved() { copy({ strict: false }); },
   };
 }
 
