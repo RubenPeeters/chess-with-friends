@@ -57,13 +57,13 @@ function stockfishAssets() {
       }
       // Skip if already up-to-date (same size + mtime) — avoids re-copying the
       // 39 MB NNUE file on every dev-server restart.
+      const srcStat = fs.statSync(from);
       try {
-        const s = fs.statSync(from);
-        const d = fs.statSync(to);
-        if (s.size === d.size && s.mtimeMs === d.mtimeMs) continue;
+        const destStat = fs.statSync(to);
+        if (srcStat.size === destStat.size && srcStat.mtimeMs === destStat.mtimeMs) continue;
       } catch { /* dest doesn't exist yet */ }
       fs.copyFileSync(from, to);
-      fs.utimesSync(to, fs.statSync(from).atime, fs.statSync(from).mtime);
+      fs.utimesSync(to, srcStat.atime, srcStat.mtime);
     }
   }
 
