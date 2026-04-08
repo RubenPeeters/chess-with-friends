@@ -22,6 +22,12 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
  * directory is gitignored.
  */
 function stockfishAssets() {
+  // Captured from `configResolved` and read by `buildStart`. Vite's plugin
+  // model fires `buildStart` in BOTH `vite build` and `vite dev` (the dev
+  // server runs the same Rollup hooks as a one-off bundler), so we can't
+  // unconditionally treat `buildStart` as a "production only" signal.
+  let isBuildCommand = false;
+
   const srcDir = path.resolve(__dirname, 'node_modules/stockfish/src');
   const destDir = path.resolve(__dirname, 'public/stockfish');
   const files = [
@@ -32,11 +38,10 @@ function stockfishAssets() {
 
   /**
    * @param {{ strict: boolean }} opts
-   *   `strict: true` throws on missing files (used by `buildStart` so a
-   *   broken production build fails fast instead of shipping a `dist/`
-   *   without the engine). `strict: false` only warns (used by
-   *   `configResolved` in dev so a still-installing node_modules doesn't
-   *   block the dev server from starting).
+   *   `strict: true` throws on missing files (used in production builds so a
+   *   broken `dist/` is never shipped). `strict: false` only warns (used in
+   *   dev so a still-installing or partially-installed node_modules doesn't
+   *   prevent the dev server from coming up).
    */
   function copy({ strict }) {
     if (!fs.existsSync(srcDir)) {
@@ -69,12 +74,18 @@ function stockfishAssets() {
 
   return {
     name: 'stockfish-assets',
-    // Production builds must fail hard if the engine is missing — better
-    // than silently shipping a `dist/` with a broken review screen.
-    buildStart() { copy({ strict: true }); },
-    // Dev startup is lenient: a partially installed node_modules shouldn't
-    // prevent `npm run dev` from coming up.
-    configResolved() { copy({ strict: false }); },
+    // configResolved fires once before any other hook in both serve and
+    // build modes — record which command we're in so buildStart can branch.
+    // The lenient copy here is enough to populate `public/stockfish/` for
+    // the dev server (Vite serves anything in public/ as a static asset).
+    configResolved(config) {
+      isBuildCommand = config.command === 'build';
+      copy({ strict: false });
+    },
+    // buildStart fires for `vite build` AND `vite dev`. Only enforce strict
+    // in production builds so a broken `dist/` is never shipped; in dev,
+    // stay lenient so a missing/partial node_modules doesn't kill startup.
+    buildStart() { copy({ strict: isBuildCommand }); },
   };
 }
 
