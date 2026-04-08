@@ -110,7 +110,7 @@ export function FriendsPanel({ token, onChallengeAccepted }) {
   if (loading) return (
     <div className="flex flex-col gap-3">
       {[...Array(3)].map((_, i) => (
-        <div key={i} className="h-[60px] rounded-2xl bg-surface-high animate-pulse" />
+        <div key={i} className="h-[60px] rounded-md bg-surface-high animate-pulse" />
       ))}
     </div>
   );
@@ -120,14 +120,14 @@ export function FriendsPanel({ token, onChallengeAccepted }) {
 
       {/* Toast */}
       {actionMsg && (
-        <div className="font-mono text-[0.8rem] bg-success-bg text-success rounded-xl px-4 py-2.5 flex items-center gap-2">
+        <div className="font-mono text-[0.8rem] bg-success-bg text-success rounded-md px-4 py-2.5 flex items-center gap-2">
           <span>✓</span> {actionMsg}
         </div>
       )}
 
       {/* Challenge card */}
       {challenge && (
-        <div className="flex flex-col gap-3 bg-white rounded-2xl p-5 border border-primary/20 shadow-[0_2px_12px_rgba(0,90,183,0.08)]">
+        <div className="flex flex-col gap-3 bg-white rounded-md p-5 border border-primary/20 shadow-[0_2px_12px_rgba(0,90,183,0.08)]">
           {challenge.invite ? (
             <>
               <div className="flex items-center gap-2">
@@ -222,7 +222,7 @@ export function FriendsPanel({ token, onChallengeAccepted }) {
         </form>
 
         {searchErr && (
-          <p className="font-mono text-[0.8rem] text-danger bg-danger-bg rounded-xl px-3 py-2">{searchErr}</p>
+          <p className="font-mono text-[0.8rem] text-danger bg-danger-bg rounded-md px-3 py-2">{searchErr}</p>
         )}
 
         {results.map((u) => (
@@ -252,7 +252,7 @@ function SectionTitle({ children }) {
 function UserRow({ name, rating, sub, children }) {
   const initial = (name ?? '?')[0].toUpperCase();
   return (
-    <div className="flex items-center justify-between gap-3 px-4 py-3 rounded-2xl bg-white border border-surface-high shadow-[0_1px_4px_rgba(0,0,0,0.04)]">
+    <div className="flex items-center justify-between gap-3 px-4 py-3 rounded-md bg-white border border-surface-high shadow-[0_1px_4px_rgba(0,0,0,0.04)]">
       {/* Mini avatar + info */}
       <div className="flex items-center gap-3 flex-1 min-w-0">
         <div className="w-9 h-9 rounded-full bg-primary-gradient text-on-primary font-display font-bold text-sm flex items-center justify-center flex-shrink-0">

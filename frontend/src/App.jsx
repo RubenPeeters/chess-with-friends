@@ -221,7 +221,7 @@ export default function App() {
   const challengeBanner = notifications.length > 0 && (
     <div className="fixed bottom-6 right-6 flex flex-col gap-2 z-[200] max-w-sm w-full">
       {notifications.map((n) => (
-        <div key={n.id} className="flex items-center gap-3 bg-white rounded-xl px-4 py-3.5 shadow-[0_8px_32px_rgba(0,0,0,0.12)] border border-surface-high">
+        <div key={n.id} className="flex items-center gap-3 bg-white rounded-md px-4 py-3.5 shadow-[0_8px_32px_rgba(0,0,0,0.12)] border border-surface-high">
           <div className="flex flex-col gap-0.5 flex-1 min-w-0">
             <span className="font-display font-bold text-sm text-on-surface">{n.from_name} challenged you!</span>
             <span className="font-mono text-[0.7rem] text-muted">{n.time_control} · Accept to start</span>
@@ -260,7 +260,7 @@ export default function App() {
             <span className="font-display font-extrabold text-lg tracking-[-0.02em] text-white/80">FF</span>
 
             <div className="max-w-lg">
-              <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-sm border border-white/10 rounded-full px-4 py-1.5 mb-8">
+              <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-sm border border-white/10 rounded-md px-4 py-1.5 mb-8">
                 <span className="text-white/60 font-mono text-[0.65rem] uppercase tracking-[0.1em]">Glicko-2 Rated</span>
                 <span className="w-1 h-1 rounded-full bg-white/30" />
                 <span className="text-white/60 font-mono text-[0.65rem] uppercase tracking-[0.1em]">Live Games</span>
@@ -301,7 +301,7 @@ export default function App() {
                 <div className="flex flex-col gap-1.5">
                   <label className="font-body text-xs font-semibold text-muted uppercase tracking-[0.07em]">Display name</label>
                   <input
-                    className="w-full px-5 py-3.5 bg-surface rounded-xl border border-surface-high outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary font-body text-sm text-on-surface placeholder:text-muted/50 transition-all"
+                    className="w-full px-5 py-3.5 bg-surface rounded-md border border-surface-high outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary font-body text-sm text-on-surface placeholder:text-muted/50 transition-all"
                     placeholder="Magnus"
                     value={authForm.displayName}
                     onChange={(e) => setAuthForm((f) => ({ ...f, displayName: e.target.value }))}
@@ -313,7 +313,7 @@ export default function App() {
               <div className="flex flex-col gap-1.5">
                 <label className="font-body text-xs font-semibold text-muted uppercase tracking-[0.07em]">Email address</label>
                 <input
-                  className="w-full px-5 py-3.5 bg-surface rounded-xl border border-surface-high outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary font-body text-sm text-on-surface placeholder:text-muted/50 transition-all"
+                  className="w-full px-5 py-3.5 bg-surface rounded-md border border-surface-high outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary font-body text-sm text-on-surface placeholder:text-muted/50 transition-all"
                   type="email"
                   placeholder="you@example.com"
                   value={authForm.email}
@@ -325,7 +325,7 @@ export default function App() {
               <div className="flex flex-col gap-1.5">
                 <label className="font-body text-xs font-semibold text-muted uppercase tracking-[0.07em]">Password</label>
                 <input
-                  className="w-full px-5 py-3.5 bg-surface rounded-xl border border-surface-high outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary font-body text-sm text-on-surface transition-all"
+                  className="w-full px-5 py-3.5 bg-surface rounded-md border border-surface-high outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary font-body text-sm text-on-surface transition-all"
                   type="password"
                   placeholder="••••••••"
                   value={authForm.password}
@@ -336,11 +336,11 @@ export default function App() {
               </div>
 
               {authError && (
-                <p className="font-mono text-xs text-danger bg-danger-bg rounded-xl px-4 py-2.5">{authError}</p>
+                <p className="font-mono text-xs text-danger bg-danger-bg rounded-md px-4 py-2.5">{authError}</p>
               )}
 
               <button
-                className="w-full py-3.5 bg-primary text-on-primary rounded-full font-display font-bold text-sm tracking-[-0.01em] shadow-lg shadow-primary/20 hover:opacity-90 active:scale-[0.98] transition-all mt-1 border-0 cursor-pointer disabled:opacity-50"
+                className="w-full py-3.5 bg-primary text-on-primary rounded-md font-display font-bold text-sm tracking-[-0.01em] shadow-lg shadow-primary/20 hover:opacity-90 active:scale-[0.98] transition-all mt-1 border-0 cursor-pointer disabled:opacity-50"
                 type="submit"
                 disabled={authLoading}
               >
@@ -392,7 +392,7 @@ export default function App() {
               <span className="font-display font-extrabold text-sm tracking-[-0.01em] text-on-surface">Fianchetto Friends</span>
             </div>
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center text-on-primary font-display font-extrabold text-base flex-shrink-0 shadow-lg shadow-primary/30">
+              <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-on-primary font-display font-extrabold text-base flex-shrink-0 shadow-lg shadow-primary/30">
                 {(user?.display_name ?? '?')[0].toUpperCase()}
               </div>
               <div className="min-w-0">
@@ -411,7 +411,7 @@ export default function App() {
                 key={key}
                 onClick={() => setLobbyTab(key)}
                 className={[
-                  'flex items-center gap-3 py-3 px-3 rounded-xl text-left w-full transition-all duration-150 border-0 cursor-pointer',
+                  'flex items-center gap-3 py-3 px-3 rounded-md text-left w-full transition-all duration-150 border-0 cursor-pointer',
                   lobbyTab === key
                     ? 'bg-primary text-on-primary shadow-sm'
                     : 'bg-transparent text-muted hover:bg-black/[0.05] hover:text-on-surface',
@@ -427,7 +427,7 @@ export default function App() {
           <div className="px-3 pb-6 pt-3 border-t border-black/[0.06]">
             <button
               onClick={handleLogout}
-              className="flex items-center gap-3 py-3 px-3 rounded-xl text-left w-full transition-all border-0 cursor-pointer text-muted hover:bg-black/[0.05] hover:text-danger"
+              className="flex items-center gap-3 py-3 px-3 rounded-md text-left w-full transition-all border-0 cursor-pointer text-muted hover:bg-black/[0.05] hover:text-danger"
             >
               <span className="w-5 text-center text-sm leading-none flex-shrink-0">↩</span>
               <span className="font-body text-xs font-semibold uppercase tracking-[0.07em]">Sign out</span>
@@ -464,7 +464,7 @@ export default function App() {
               <button
                 onClick={handleCreateInvite}
                 disabled={creatingInvite}
-                className="flex items-center gap-1.5 bg-primary text-on-primary rounded-full px-5 py-2.5 font-display font-bold text-sm border-0 cursor-pointer hover:opacity-90 active:scale-[0.97] transition-all shadow-lg shadow-primary/20 disabled:opacity-50"
+                className="flex items-center gap-1.5 bg-primary text-on-primary rounded-md px-5 py-2.5 font-display font-bold text-sm border-0 cursor-pointer hover:opacity-90 active:scale-[0.97] transition-all shadow-lg shadow-primary/20 disabled:opacity-50"
               >
                 <span className="text-lg leading-none">+</span> New Game
               </button>
@@ -509,7 +509,7 @@ export default function App() {
               <div className="max-w-[1100px] mx-auto grid grid-cols-12 gap-6">
 
                 {/* Match card */}
-                <section className="col-span-12 lg:col-span-7 bg-white rounded-2xl shadow-[0_2px_16px_rgba(0,0,0,0.05)] border border-black/[0.04] p-8">
+                <section className="col-span-12 lg:col-span-7 bg-white rounded-md shadow-[0_2px_16px_rgba(0,0,0,0.05)] border border-black/[0.04] p-8">
                   <p className="font-mono text-[0.6rem] text-muted uppercase tracking-[0.1em] mb-1">
                     {createdInvite ? 'Share with your opponent' : 'Start a game'}
                   </p>
@@ -519,14 +519,14 @@ export default function App() {
 
                   {createdInvite ? (
                     <div className="flex flex-col gap-4">
-                      <div className="flex items-center gap-3 p-4 bg-[#f1f2f4] rounded-2xl">
+                      <div className="flex items-center gap-3 p-4 bg-[#f1f2f4] rounded-md">
                         <span className="font-mono text-xs text-on-surface flex-1 break-all leading-relaxed">
                           {`${location.origin}/play/${createdInvite.token}`}
                         </span>
                         <button
                           onClick={handleCopyLink}
                           className={[
-                            'font-mono text-xs font-bold px-4 py-2 rounded-full border-0 cursor-pointer whitespace-nowrap transition-all flex-shrink-0',
+                            'font-mono text-xs font-bold px-4 py-2 rounded-md border-0 cursor-pointer whitespace-nowrap transition-all flex-shrink-0',
                             copied ? 'bg-success-bg text-success' : 'bg-primary text-on-primary hover:opacity-80',
                           ].join(' ')}
                         >{copied ? '✓ Copied' : 'Copy link'}</button>
@@ -567,7 +567,7 @@ export default function App() {
                       </div>
 
                       {/* Custom TC */}
-                      <div className="flex items-center gap-3 mb-5 p-3 bg-[#f1f2f4] rounded-xl">
+                      <div className="flex items-center gap-3 mb-5 p-3 bg-[#f1f2f4] rounded-md">
                         <span className="font-mono text-[0.62rem] text-muted uppercase tracking-[0.07em] whitespace-nowrap">Custom:</span>
                         <select
                           className="flex-1 bg-transparent border-0 outline-none font-body text-sm text-on-surface cursor-pointer"
@@ -585,11 +585,11 @@ export default function App() {
                       </div>
 
                       {lobbyError && (
-                        <p className="font-mono text-xs text-danger bg-danger-bg rounded-xl px-4 py-2.5 mb-4">{lobbyError}</p>
+                        <p className="font-mono text-xs text-danger bg-danger-bg rounded-md px-4 py-2.5 mb-4">{lobbyError}</p>
                       )}
 
                       <button
-                        className="w-full py-3.5 bg-primary text-on-primary rounded-full font-display font-bold text-sm border-0 cursor-pointer hover:opacity-90 active:scale-[0.98] transition-all shadow-lg shadow-primary/20 disabled:opacity-50"
+                        className="w-full py-3.5 bg-primary text-on-primary rounded-md font-display font-bold text-sm border-0 cursor-pointer hover:opacity-90 active:scale-[0.98] transition-all shadow-lg shadow-primary/20 disabled:opacity-50"
                         onClick={handleCreateInvite}
                         disabled={creatingInvite}
                       >
@@ -600,18 +600,18 @@ export default function App() {
                 </section>
 
                 {/* Profile ratings card */}
-                <section className="col-span-12 lg:col-span-5 bg-white rounded-2xl shadow-[0_2px_16px_rgba(0,0,0,0.05)] border border-black/[0.04] overflow-hidden">
+                <section className="col-span-12 lg:col-span-5 bg-white rounded-md shadow-[0_2px_16px_rgba(0,0,0,0.05)] border border-black/[0.04] overflow-hidden">
                   <ProfilePanel token={token} user={user} />
                 </section>
 
                 {/* Join game strip */}
-                <section className="col-span-12 bg-white rounded-2xl shadow-[0_2px_16px_rgba(0,0,0,0.05)] border border-black/[0.04] px-8 py-6">
+                <section className="col-span-12 bg-white rounded-md shadow-[0_2px_16px_rgba(0,0,0,0.05)] border border-black/[0.04] px-8 py-6">
                   <h2 className="font-display font-bold text-base text-on-surface mb-4">Join a game</h2>
                   <form onSubmit={handleJoin} className="flex items-end gap-3">
                     <div className="flex flex-col gap-1.5 flex-1">
                       <label className="font-mono text-[0.6rem] text-muted uppercase tracking-[0.07em]">Invite token or game ID</label>
                       <input
-                        className="px-4 py-3 bg-[#f1f2f4] rounded-xl border-0 outline-none focus:ring-2 focus:ring-primary/30 font-mono text-xs text-on-surface placeholder:text-muted/50 transition-all"
+                        className="px-4 py-3 bg-[#f1f2f4] rounded-md border-0 outline-none focus:ring-2 focus:ring-primary/30 font-mono text-xs text-on-surface placeholder:text-muted/50 transition-all"
                         placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
                         value={joinInput}
                         onChange={(e) => setJoinInput(e.target.value)}
@@ -619,7 +619,7 @@ export default function App() {
                       />
                     </div>
                     <button
-                      className="py-3 px-6 bg-on-surface text-white rounded-full font-display font-bold text-sm border-0 cursor-pointer hover:opacity-80 transition-all whitespace-nowrap disabled:opacity-50 flex-shrink-0"
+                      className="py-3 px-6 bg-on-surface text-white rounded-md font-display font-bold text-sm border-0 cursor-pointer hover:opacity-80 transition-all whitespace-nowrap disabled:opacity-50 flex-shrink-0"
                       type="submit"
                       disabled={joiningGame}
                     >
@@ -648,7 +648,7 @@ export default function App() {
             {/* ── Analyze tab — paste a PGN ── */}
             {!viewingGameId && !pgnReviewData && lobbyTab === 'analyze' && (
               <div className="max-w-2xl mx-auto">
-                <div className="bg-white rounded-2xl shadow-[0_2px_16px_rgba(0,0,0,0.05)] border border-black/[0.04] p-8">
+                <div className="bg-white rounded-md shadow-[0_2px_16px_rgba(0,0,0,0.05)] border border-black/[0.04] p-8">
                   <p className="font-mono text-[0.6rem] text-muted uppercase tracking-[0.1em] mb-1">
                     Paste a PGN
                   </p>
@@ -660,19 +660,19 @@ export default function App() {
                   </p>
                   <textarea
                     aria-labelledby="analyze-heading"
-                    className="w-full min-h-[260px] px-4 py-3 bg-[#f1f2f4] rounded-xl border-0 outline-none focus:ring-2 focus:ring-primary/30 font-mono text-xs text-on-surface placeholder:text-muted/50 transition-all resize-y"
+                    className="w-full min-h-[260px] px-4 py-3 bg-[#f1f2f4] rounded-md border-0 outline-none focus:ring-2 focus:ring-primary/30 font-mono text-xs text-on-surface placeholder:text-muted/50 transition-all resize-y"
                     placeholder={'[Event "Casual game"]\n[White "Player A"]\n[Black "Player B"]\n[Result "1-0"]\n\n1. e4 e5 2. Nf3 Nc6 3. Bb5 ...'}
                     value={pgnInput}
                     onChange={(e) => { setPgnInput(e.target.value); setPgnError(''); }}
                     spellCheck={false}
                   />
                   {pgnError && (
-                    <p className="font-mono text-xs text-danger bg-danger-bg rounded-xl px-4 py-2.5 mt-4">{pgnError}</p>
+                    <p className="font-mono text-xs text-danger bg-danger-bg rounded-md px-4 py-2.5 mt-4">{pgnError}</p>
                   )}
                   <button
                     onClick={handleAnalyzePgn}
                     disabled={!pgnInput.trim()}
-                    className="mt-5 w-full py-3.5 bg-primary text-on-primary rounded-full font-display font-bold text-sm border-0 cursor-pointer hover:opacity-90 active:scale-[0.98] transition-all shadow-lg shadow-primary/20 disabled:opacity-50"
+                    className="mt-5 w-full py-3.5 bg-primary text-on-primary rounded-md font-display font-bold text-sm border-0 cursor-pointer hover:opacity-90 active:scale-[0.98] transition-all shadow-lg shadow-primary/20 disabled:opacity-50"
                   >
                     Analyze →
                   </button>
@@ -724,21 +724,21 @@ export default function App() {
         </div>
         <div className="flex items-center gap-3">
           <button
-            className="font-body text-sm font-medium text-muted hover:text-on-surface bg-transparent border-0 cursor-pointer transition-colors disabled:opacity-30 px-3 py-1.5 rounded-xl hover:bg-surface-high"
+            className="font-body text-sm font-medium text-muted hover:text-on-surface bg-transparent border-0 cursor-pointer transition-colors disabled:opacity-30 px-3 py-1.5 rounded-md hover:bg-surface-high"
             onClick={sendDrawOffer}
             disabled={!!gameOver}
           >
             Offer draw
           </button>
           <button
-            className="font-body text-sm font-medium text-danger hover:bg-danger-bg bg-transparent border border-danger/20 cursor-pointer transition-all disabled:opacity-30 px-3 py-1.5 rounded-xl"
+            className="font-body text-sm font-medium text-danger hover:bg-danger-bg bg-transparent border border-danger/20 cursor-pointer transition-all disabled:opacity-30 px-3 py-1.5 rounded-md"
             onClick={sendResign}
             disabled={!!gameOver}
           >
             Resign
           </button>
           <div className={[
-            'flex items-center gap-1.5 font-mono text-xs font-medium px-3 py-1.5 rounded-full',
+            'flex items-center gap-1.5 font-mono text-xs font-medium px-3 py-1.5 rounded-md',
             connected ? 'bg-success-bg text-success' : 'bg-surface-high text-muted',
           ].join(' ')}>
             <div className={['w-1.5 h-1.5 rounded-full', connected ? 'bg-success animate-pulse' : 'bg-muted'].join(' ')} />
@@ -838,7 +838,7 @@ export default function App() {
 function Overlay({ children }) {
   return (
     <div className="fixed inset-0 bg-surface-low/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl p-8 shadow-[0_24px_64px_rgba(0,0,0,0.12)] max-w-sm w-full flex flex-col gap-2">
+      <div className="bg-white rounded-md p-8 shadow-[0_24px_64px_rgba(0,0,0,0.12)] max-w-sm w-full flex flex-col gap-2">
         {children}
       </div>
     </div>

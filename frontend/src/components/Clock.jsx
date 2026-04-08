@@ -87,7 +87,7 @@ export function Clock({ serverMs, active, label }) {
 
   return (
     <div className={[
-      'flex flex-col gap-0.5 px-4 py-3 rounded-2xl min-w-[120px] transition-all duration-300',
+      'flex flex-col gap-0.5 px-4 py-3 rounded-md min-w-[120px] transition-all duration-300',
       active
         ? 'bg-white border border-surface-high shadow-[0_2px_12px_rgba(0,0,0,0.08)]'
         : 'bg-surface-low border border-transparent',

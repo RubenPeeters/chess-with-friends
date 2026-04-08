@@ -36,7 +36,7 @@ export function PlayerProfile({ userId, token, onClose, onViewGame }) {
       className="fixed inset-0 bg-on-surface/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
-      <div className="bg-white rounded-2xl shadow-[0_24px_64px_rgba(0,0,0,0.2)] w-full max-w-md max-h-[88vh] flex flex-col overflow-hidden">
+      <div className="bg-white rounded-md shadow-[0_24px_64px_rgba(0,0,0,0.2)] w-full max-w-md max-h-[88vh] flex flex-col overflow-hidden">
 
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-5 border-b border-surface-high flex-shrink-0">
@@ -62,7 +62,7 @@ export function PlayerProfile({ userId, token, onClose, onViewGame }) {
           {loading && (
             <div className="p-6 flex flex-col gap-3">
               {[...Array(3)].map((_, i) => (
-                <div key={i} className="h-12 rounded-2xl bg-surface-high animate-pulse" />
+                <div key={i} className="h-12 rounded-md bg-surface-high animate-pulse" />
               ))}
             </div>
           )}
@@ -80,7 +80,7 @@ export function PlayerProfile({ userId, token, onClose, onViewGame }) {
                   {TYPES.map((type) => {
                     const r = data.ratings[type];
                     return (
-                      <div key={type} className="bg-surface rounded-2xl px-4 py-3.5 border border-surface-high">
+                      <div key={type} className="bg-surface rounded-md px-4 py-3.5 border border-surface-high">
                         <div className="flex items-center gap-1.5 mb-1.5">
                           <span className="text-base leading-none">{ICONS[type]}</span>
                           <span className="font-mono text-[0.65rem] text-muted uppercase tracking-[0.06em] capitalize">
@@ -123,7 +123,7 @@ export function PlayerProfile({ userId, token, onClose, onViewGame }) {
                         <div
                           key={g.id}
                           onClick={() => onViewGame?.(g.id)}
-                          className="flex items-center gap-3 px-4 py-3 rounded-2xl bg-surface border border-surface-high cursor-pointer hover:border-primary/30 hover:shadow-[0_2px_8px_rgba(0,90,183,0.08)] transition-all"
+                          className="flex items-center gap-3 px-4 py-3 rounded-md bg-surface border border-surface-high cursor-pointer hover:border-primary/30 hover:shadow-[0_2px_8px_rgba(0,90,183,0.08)] transition-all"
                         >
                           <span className={`font-mono text-[0.6rem] font-bold tracking-[0.06em] px-2.5 py-1.5 rounded-lg min-w-[44px] text-center flex-shrink-0 ${OUTCOME_STYLE[outcome]}`}>
                             {outcome.toUpperCase()}
