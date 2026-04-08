@@ -52,13 +52,20 @@ export function Clock({ serverMs, active, label }) {
   }, [active]);
 
   // While running, schedule re-renders for smooth display. The value itself is
-  // always derived from the anchor — this loop only paints.
+  // always derived from the anchor — this loop only paints. Stop scheduling
+  // once the clock is exhausted: the displayed value is already clamped to 0
+  // and continuing to repaint would just burn CPU/battery until the server's
+  // game_over message arrives and flips `active` false.
   useEffect(() => {
     if (!active) return;
     let raf;
     const loop = () => {
+      const a = anchorRef.current;
+      const remaining = Math.max(0, a.ms - (a.running ? performance.now() - a.t : 0));
       rerender();
-      raf = requestAnimationFrame(loop);
+      if (a.running && remaining > 0) {
+        raf = requestAnimationFrame(loop);
+      }
     };
     raf = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(raf);
