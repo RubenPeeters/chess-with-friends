@@ -1,37 +1,80 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useReducer, useRef } from 'react';
 
 /**
  * Countdown clock driven by authoritative server values.
- * Local rAF tick runs between state_update messages for smooth display.
+ *
+ * Implementation note: the displayed time is *derived* from a timestamp anchor
+ * (`{ ms, t, running }`) on every render — never accumulated into React state.
+ * This makes the clock immune to dropped frames, browser tab throttling, slow
+ * renders, parent re-renders, and React batching: the displayed value is always
+ * `anchor.ms - (perf.now() - anchor.t)` while running, computed fresh.
+ *
+ * The anchor is re-snapshotted in two situations:
+ *   1. `serverMs` changes — a fresh authoritative value arrived from the server.
+ *   2. `active` flips — capture the currently displayed value so the clock
+ *      freezes (or unfreezes) cleanly even if no new `serverMs` accompanies the
+ *      flip (e.g. game ends mid-think).
+ *
+ * `requestAnimationFrame` is used only to trigger re-renders for smooth display
+ * — it never mutates state, so missed frames cannot cause drift.
  */
 export function Clock({ serverMs, active, label }) {
-  const [displayMs, setDisplayMs] = useState(serverMs);
-  const rafRef      = useRef(null);
-  const lastTickRef = useRef(null);
+  const anchorRef = useRef({ ms: serverMs, t: performance.now(), running: active });
+  // useReducer's dispatch is guaranteed stable by React, so the rAF and layout
+  // effects can close over `rerender` safely without dependency-list churn.
+  const [, rerender] = useReducer((n) => (n + 1) | 0, 0);
 
-  useEffect(() => {
-    setDisplayMs(serverMs);
-    lastTickRef.current = null;
+  // Re-anchor on every authoritative server update. Layout-effect so the
+  // synchronous rerender() below commits before paint — `serverMs` and `active`
+  // typically change in the same render (both come from gameState in App.jsx),
+  // and a passive useEffect here would briefly paint the previous anchor first.
+  useLayoutEffect(() => {
+    anchorRef.current = { ms: serverMs, t: performance.now(), running: active };
+    rerender();
+    // `active` is intentionally read but not a dep — the active-flip effect
+    // below handles transitions independently.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [serverMs]);
 
-  useEffect(() => {
-    if (!active) {
-      if (rafRef.current) cancelAnimationFrame(rafRef.current);
-      return;
-    }
-    const tick = (now) => {
-      if (lastTickRef.current !== null) {
-        setDisplayMs((prev) => Math.max(0, prev - (now - lastTickRef.current)));
-      }
-      lastTickRef.current = now;
-      rafRef.current = requestAnimationFrame(tick);
+  // Re-anchor on every active flip — bake the currently displayed value into
+  // the anchor so freeze/unfreeze is seamless. Layout-effect for the same
+  // pre-paint reason as above.
+  useLayoutEffect(() => {
+    const a = anchorRef.current;
+    const elapsed = a.running ? performance.now() - a.t : 0;
+    anchorRef.current = {
+      ms: Math.max(0, a.ms - elapsed),
+      t: performance.now(),
+      running: active,
     };
-    rafRef.current = requestAnimationFrame(tick);
-    return () => {
-      if (rafRef.current) cancelAnimationFrame(rafRef.current);
-      lastTickRef.current = null;
-    };
+    rerender();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active]);
+
+  // While running, schedule re-renders for smooth display. The value itself is
+  // always derived from the anchor — this loop only paints. Stop scheduling
+  // once the clock is exhausted: the displayed value is already clamped to 0
+  // and continuing to repaint would just burn CPU/battery until the server's
+  // game_over message arrives and flips `active` false.
+  useEffect(() => {
+    if (!active) return;
+    let raf;
+    const loop = () => {
+      const a = anchorRef.current;
+      const remaining = Math.max(0, a.ms - (a.running ? performance.now() - a.t : 0));
+      rerender();
+      if (a.running && remaining > 0) {
+        raf = requestAnimationFrame(loop);
+      }
+    };
+    raf = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(raf);
+  }, [active]);
+
+  // Derive the displayed value freshly from the anchor.
+  const a = anchorRef.current;
+  const elapsed = a.running ? performance.now() - a.t : 0;
+  const displayMs = Math.max(0, a.ms - elapsed);
 
   const minutes = Math.floor(displayMs / 60_000);
   const seconds = Math.floor((displayMs % 60_000) / 1000);
