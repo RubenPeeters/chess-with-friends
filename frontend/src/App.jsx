@@ -392,7 +392,7 @@ export default function App() {
               <span className="font-display font-extrabold text-sm tracking-[-0.01em] text-on-surface">Fianchetto Friends</span>
             </div>
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-md bg-primary flex items-center justify-center text-on-primary font-display font-extrabold text-base flex-shrink-0 shadow-lg shadow-primary/30">
+              <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-on-primary font-display font-extrabold text-base flex-shrink-0 shadow-lg shadow-primary/30">
                 {(user?.display_name ?? '?')[0].toUpperCase()}
               </div>
               <div className="min-w-0">
