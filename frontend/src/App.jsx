@@ -652,13 +652,14 @@ export default function App() {
                   <p className="font-mono text-[0.6rem] text-muted uppercase tracking-[0.1em] mb-1">
                     Paste a PGN
                   </p>
-                  <h2 className="font-display font-extrabold text-2xl text-on-surface tracking-[-0.02em] mb-2">
+                  <h2 id="analyze-heading" className="font-display font-extrabold text-2xl text-on-surface tracking-[-0.02em] mb-2">
                     Analyze any game
                   </h2>
                   <p className="font-body text-sm text-muted mb-6">
                     Paste a PGN from Lichess, Chess.com, or any other source. The full game opens in the review board with engine analysis on every position.
                   </p>
                   <textarea
+                    aria-labelledby="analyze-heading"
                     className="w-full min-h-[260px] px-4 py-3 bg-[#f1f2f4] rounded-xl border-0 outline-none focus:ring-2 focus:ring-primary/30 font-mono text-xs text-on-surface placeholder:text-muted/50 transition-all resize-y"
                     placeholder={'[Event "Casual game"]\n[White "Player A"]\n[Black "Player B"]\n[Result "1-0"]\n\n1. e4 e5 2. Nf3 Nc6 3. Bb5 ...'}
                     value={pgnInput}
