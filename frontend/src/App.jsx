@@ -10,6 +10,7 @@ import { Leaderboard } from './components/Leaderboard.jsx';
 import { useGameSocket } from './hooks/useGameSocket.js';
 import { useNotifications } from './hooks/useNotifications.js';
 import { apiFetch } from './api.js';
+import { parsePgn } from './utils/pgn.js';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -65,6 +66,13 @@ export default function App() {
   const [drawOfferDismissed, setDrawOfferDismissed] = useState(null);
   const [viewingGameId, setViewingGameId]           = useState(null);
   const [viewingPlayerId, setViewingPlayerId]       = useState(null);
+  const [pgnInput, setPgnInput]                     = useState('');
+  const [pgnError, setPgnError]                     = useState('');
+  // Holds the *parsed* PGN result, not the raw text. Truthy = the PGN review
+  // surface is active. parsePgn runs exactly once (in handleAnalyzePgn) so
+  // GameReview never has to re-parse the same input. Raw textarea content
+  // lives in `pgnInput` for back-to-edit preservation.
+  const [pgnReviewData, setPgnReviewData]           = useState(null);
 
   const { gameState, sendMove, sendResign, sendDrawOffer, sendDrawAccept, connected } =
     useGameSocket(gameId, token);
@@ -180,6 +188,26 @@ export default function App() {
       catch { window.prompt('Copy this link:', link); }
       finally { document.body.removeChild(el); }
     }
+  }
+
+  // Parse the pasted PGN exactly once. On success, store the parsed result
+  // and navigate to the review screen — GameReview consumes the parsed object
+  // directly, so it never has to re-parse. On failure, surface the error
+  // inline on the input form (better UX than bouncing into a failed review).
+  function handleAnalyzePgn() {
+    setPgnError('');
+    try {
+      const parsed = parsePgn(pgnInput);
+      setPgnReviewData(parsed);
+    } catch (err) {
+      setPgnError(err.message);
+    }
+  }
+
+  // Single back-button handler — clears whichever review surface is active.
+  function handleCloseReview() {
+    setViewingGameId(null);
+    setPgnReviewData(null);
   }
 
   async function acceptChallenge(notif) {
@@ -347,6 +375,7 @@ export default function App() {
     const NAV_ITEMS = [
       { key: 'play',        icon: '♟', label: 'Play' },
       { key: 'history',     icon: '◈', label: 'History' },
+      { key: 'analyze',     icon: '🔍', label: 'Analyze' },
       { key: 'friends',     icon: '◎', label: 'Friends' },
       { key: 'leaderboard', icon: '🏆', label: 'Leaderboard' },
     ];
@@ -412,24 +441,26 @@ export default function App() {
           {/* Top header */}
           <header className="sticky top-0 z-30 bg-[#f1f2f4]/80 backdrop-blur-xl border-b border-black/[0.06] px-10 py-4 flex items-center justify-between">
             <div className="flex items-center gap-3">
-              {viewingGameId && (
+              {(viewingGameId || pgnReviewData) && (
                 <button
-                  onClick={() => setViewingGameId(null)}
+                  onClick={handleCloseReview}
                   className="font-body text-sm text-muted hover:text-on-surface bg-transparent border-0 cursor-pointer transition-colors flex items-center gap-1.5"
                 >
                   ← Back
                 </button>
               )}
               <h1 className="font-display font-extrabold text-xl tracking-[-0.025em] text-on-surface">
-                {viewingGameId                  ? 'Game Analysis'
+                {viewingGameId                 ? 'Game Analysis'
+                  : pgnReviewData               ? 'PGN Analysis'
                   : lobbyTab === 'play'         ? <>Welcome back, <span className="text-primary">{user?.display_name?.split(' ')[0]}</span>.</>
                   : lobbyTab === 'history'      ? 'Match History'
+                  : lobbyTab === 'analyze'      ? 'Analyze a game'
                   : lobbyTab === 'friends'      ? 'Friends'
                   : lobbyTab === 'leaderboard'  ? 'Leaderboard'
                   : null}
               </h1>
             </div>
-            {!viewingGameId && (
+            {!viewingGameId && !pgnReviewData && (
               <button
                 onClick={handleCreateInvite}
                 disabled={creatingInvite}
@@ -443,18 +474,28 @@ export default function App() {
           {/* Content */}
           <main className="flex-1 px-10 py-8 overflow-y-auto">
 
-            {/* ── Game analysis page ── */}
+            {/* ── Game analysis page (existing /history/:id flow) ── */}
             {viewingGameId && (
               <GameReview
                 gameId={viewingGameId}
                 token={token}
-                onClose={() => setViewingGameId(null)}
+                onClose={handleCloseReview}
+                inline
+              />
+            )}
+
+            {/* ── PGN analysis page (new "paste any PGN" flow) ── */}
+            {!viewingGameId && pgnReviewData && (
+              <GameReview
+                data={pgnReviewData}
+                token={token}
+                onClose={handleCloseReview}
                 inline
               />
             )}
 
             {/* ── Leaderboard page ── */}
-            {!viewingGameId && lobbyTab === 'leaderboard' && (
+            {!viewingGameId && !pgnReviewData && lobbyTab === 'leaderboard' && (
               <Leaderboard
                 token={token}
                 onClose={() => setLobbyTab('play')}
@@ -464,7 +505,7 @@ export default function App() {
             )}
 
             {/* ── Play tab ── */}
-            {!viewingGameId && lobbyTab === 'play' && (
+            {!viewingGameId && !pgnReviewData && lobbyTab === 'play' && (
               <div className="max-w-[1100px] mx-auto grid grid-cols-12 gap-6">
 
                 {/* Match card */}
@@ -593,7 +634,7 @@ export default function App() {
             )}
 
             {/* ── History tab ── */}
-            {!viewingGameId && lobbyTab === 'history' && (
+            {!viewingGameId && !pgnReviewData && lobbyTab === 'history' && (
               <div className="max-w-2xl mx-auto">
                 <HistoryPanel
                   token={token}
@@ -604,8 +645,43 @@ export default function App() {
               </div>
             )}
 
+            {/* ── Analyze tab — paste a PGN ── */}
+            {!viewingGameId && !pgnReviewData && lobbyTab === 'analyze' && (
+              <div className="max-w-2xl mx-auto">
+                <div className="bg-white rounded-2xl shadow-[0_2px_16px_rgba(0,0,0,0.05)] border border-black/[0.04] p-8">
+                  <p className="font-mono text-[0.6rem] text-muted uppercase tracking-[0.1em] mb-1">
+                    Paste a PGN
+                  </p>
+                  <h2 id="analyze-heading" className="font-display font-extrabold text-2xl text-on-surface tracking-[-0.02em] mb-2">
+                    Analyze any game
+                  </h2>
+                  <p className="font-body text-sm text-muted mb-6">
+                    Paste a PGN from Lichess, Chess.com, or any other source. The full game opens in the review board with engine analysis on every position.
+                  </p>
+                  <textarea
+                    aria-labelledby="analyze-heading"
+                    className="w-full min-h-[260px] px-4 py-3 bg-[#f1f2f4] rounded-xl border-0 outline-none focus:ring-2 focus:ring-primary/30 font-mono text-xs text-on-surface placeholder:text-muted/50 transition-all resize-y"
+                    placeholder={'[Event "Casual game"]\n[White "Player A"]\n[Black "Player B"]\n[Result "1-0"]\n\n1. e4 e5 2. Nf3 Nc6 3. Bb5 ...'}
+                    value={pgnInput}
+                    onChange={(e) => { setPgnInput(e.target.value); setPgnError(''); }}
+                    spellCheck={false}
+                  />
+                  {pgnError && (
+                    <p className="font-mono text-xs text-danger bg-danger-bg rounded-xl px-4 py-2.5 mt-4">{pgnError}</p>
+                  )}
+                  <button
+                    onClick={handleAnalyzePgn}
+                    disabled={!pgnInput.trim()}
+                    className="mt-5 w-full py-3.5 bg-primary text-on-primary rounded-full font-display font-bold text-sm border-0 cursor-pointer hover:opacity-90 active:scale-[0.98] transition-all shadow-lg shadow-primary/20 disabled:opacity-50"
+                  >
+                    Analyze →
+                  </button>
+                </div>
+              </div>
+            )}
+
             {/* ── Friends tab ── */}
-            {!viewingGameId && lobbyTab === 'friends' && (
+            {!viewingGameId && !pgnReviewData && lobbyTab === 'friends' && (
               <div className="max-w-2xl mx-auto">
                 <FriendsPanel
                   token={token}
@@ -744,7 +820,7 @@ export default function App() {
       {challengeBanner}
 
       {viewingGameId && (
-        <GameReview gameId={viewingGameId} token={token} onClose={() => setViewingGameId(null)} />
+        <GameReview gameId={viewingGameId} token={token} onClose={handleCloseReview} />
       )}
       {viewingPlayerId && (
         <PlayerProfile

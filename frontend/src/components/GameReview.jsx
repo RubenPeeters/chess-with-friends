@@ -5,19 +5,50 @@ import { apiFetch } from '../api.js';
 import { identifyOpening } from '../utils/openings.js';
 import { useStockfish } from '../hooks/useStockfish.js';
 
-export function GameReview({ gameId, token, onClose, inline = false }) {
-  const [data, setData]       = useState(null);
+/**
+ * Render a finished game (or precomputed game data) with a review board, eval
+ * bar, move list and engine analysis.
+ *
+ * Data source is one of:
+ *   - `gameId`  — fetched from the social /history/:id endpoint (existing
+ *     "review one of my own games" flow).
+ *   - `data`    — a precomputed game object in the same shape the social
+ *     /history/:id endpoint returns. Used by the PGN-paste flow, where the
+ *     caller has already parsed the PGN via `utils/pgn.js#parsePgn`. Keeps
+ *     parsing/validation outside this component so callers can surface errors
+ *     in their own UI before navigating here.
+ *
+ * Pass exactly one.
+ */
+export function GameReview({ gameId, data: providedData, token, onClose, inline = false }) {
+  const [data, setData]       = useState(providedData ?? null);
   const [cursor, setCursor]   = useState(0); // 0 = start, n = after move n
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!providedData);
   const [error, setError]     = useState('');
   const { analyze, evaluation, ready: sfReady } = useStockfish();
 
   useEffect(() => {
-    setLoading(true); setError(''); setData(null); setCursor(0);
-    apiFetch(`/api/social/history/${gameId}`, { token })
-      .then((d) => { setData(d); setLoading(false); })
-      .catch((e) => { setError(e.message); setLoading(false); });
-  }, [gameId, token]);
+    setCursor(0);
+
+    if (providedData) {
+      // Caller already parsed/loaded the data — use it directly, no fetch.
+      setData(providedData);
+      setError('');
+      setLoading(false);
+      return;
+    }
+
+    if (gameId) {
+      setLoading(true); setError(''); setData(null);
+      apiFetch(`/api/social/history/${gameId}`, { token })
+        .then((d) => { setData(d); setLoading(false); })
+        .catch((e) => { setError(e.message); setLoading(false); });
+      return;
+    }
+
+    setError('No game source provided');
+    setLoading(false);
+  }, [gameId, providedData, token]);
 
   // Trigger Stockfish analysis whenever the position changes (inline/page mode only)
   useEffect(() => {
