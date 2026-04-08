@@ -68,7 +68,11 @@ export default function App() {
   const [viewingPlayerId, setViewingPlayerId]       = useState(null);
   const [pgnInput, setPgnInput]                     = useState('');
   const [pgnError, setPgnError]                     = useState('');
-  const [viewingPgn, setViewingPgn]                 = useState(null);
+  // Holds the *parsed* PGN result, not the raw text. Truthy = the PGN review
+  // surface is active. parsePgn runs exactly once (in handleAnalyzePgn) so
+  // GameReview never has to re-parse the same input. Raw textarea content
+  // lives in `pgnInput` for back-to-edit preservation.
+  const [pgnReviewData, setPgnReviewData]           = useState(null);
 
   const { gameState, sendMove, sendResign, sendDrawOffer, sendDrawAccept, connected } =
     useGameSocket(gameId, token);
@@ -186,14 +190,15 @@ export default function App() {
     }
   }
 
-  // Validate the pasted PGN before navigating to the review screen so the
-  // error stays inline on the input form (better UX than bouncing into a
-  // failed review page).
+  // Parse the pasted PGN exactly once. On success, store the parsed result
+  // and navigate to the review screen — GameReview consumes the parsed object
+  // directly, so it never has to re-parse. On failure, surface the error
+  // inline on the input form (better UX than bouncing into a failed review).
   function handleAnalyzePgn() {
     setPgnError('');
     try {
-      parsePgn(pgnInput);
-      setViewingPgn(pgnInput);
+      const parsed = parsePgn(pgnInput);
+      setPgnReviewData(parsed);
     } catch (err) {
       setPgnError(err.message);
     }
@@ -202,7 +207,7 @@ export default function App() {
   // Single back-button handler — clears whichever review surface is active.
   function handleCloseReview() {
     setViewingGameId(null);
-    setViewingPgn(null);
+    setPgnReviewData(null);
   }
 
   async function acceptChallenge(notif) {
@@ -436,7 +441,7 @@ export default function App() {
           {/* Top header */}
           <header className="sticky top-0 z-30 bg-[#f1f2f4]/80 backdrop-blur-xl border-b border-black/[0.06] px-10 py-4 flex items-center justify-between">
             <div className="flex items-center gap-3">
-              {(viewingGameId || viewingPgn) && (
+              {(viewingGameId || pgnReviewData) && (
                 <button
                   onClick={handleCloseReview}
                   className="font-body text-sm text-muted hover:text-on-surface bg-transparent border-0 cursor-pointer transition-colors flex items-center gap-1.5"
@@ -445,8 +450,8 @@ export default function App() {
                 </button>
               )}
               <h1 className="font-display font-extrabold text-xl tracking-[-0.025em] text-on-surface">
-                {viewingGameId                  ? 'Game Analysis'
-                  : viewingPgn                  ? 'PGN Analysis'
+                {viewingGameId                 ? 'Game Analysis'
+                  : pgnReviewData               ? 'PGN Analysis'
                   : lobbyTab === 'play'         ? <>Welcome back, <span className="text-primary">{user?.display_name?.split(' ')[0]}</span>.</>
                   : lobbyTab === 'history'      ? 'Match History'
                   : lobbyTab === 'analyze'      ? 'Analyze a game'
@@ -455,7 +460,7 @@ export default function App() {
                   : null}
               </h1>
             </div>
-            {!viewingGameId && !viewingPgn && (
+            {!viewingGameId && !pgnReviewData && (
               <button
                 onClick={handleCreateInvite}
                 disabled={creatingInvite}
@@ -480,9 +485,9 @@ export default function App() {
             )}
 
             {/* ── PGN analysis page (new "paste any PGN" flow) ── */}
-            {!viewingGameId && viewingPgn && (
+            {!viewingGameId && pgnReviewData && (
               <GameReview
-                pgn={viewingPgn}
+                data={pgnReviewData}
                 token={token}
                 onClose={handleCloseReview}
                 inline
@@ -490,7 +495,7 @@ export default function App() {
             )}
 
             {/* ── Leaderboard page ── */}
-            {!viewingGameId && !viewingPgn && lobbyTab === 'leaderboard' && (
+            {!viewingGameId && !pgnReviewData && lobbyTab === 'leaderboard' && (
               <Leaderboard
                 token={token}
                 onClose={() => setLobbyTab('play')}
@@ -500,7 +505,7 @@ export default function App() {
             )}
 
             {/* ── Play tab ── */}
-            {!viewingGameId && !viewingPgn && lobbyTab === 'play' && (
+            {!viewingGameId && !pgnReviewData && lobbyTab === 'play' && (
               <div className="max-w-[1100px] mx-auto grid grid-cols-12 gap-6">
 
                 {/* Match card */}
@@ -629,7 +634,7 @@ export default function App() {
             )}
 
             {/* ── History tab ── */}
-            {!viewingGameId && !viewingPgn && lobbyTab === 'history' && (
+            {!viewingGameId && !pgnReviewData && lobbyTab === 'history' && (
               <div className="max-w-2xl mx-auto">
                 <HistoryPanel
                   token={token}
@@ -641,7 +646,7 @@ export default function App() {
             )}
 
             {/* ── Analyze tab — paste a PGN ── */}
-            {!viewingGameId && !viewingPgn && lobbyTab === 'analyze' && (
+            {!viewingGameId && !pgnReviewData && lobbyTab === 'analyze' && (
               <div className="max-w-2xl mx-auto">
                 <div className="bg-white rounded-2xl shadow-[0_2px_16px_rgba(0,0,0,0.05)] border border-black/[0.04] p-8">
                   <p className="font-mono text-[0.6rem] text-muted uppercase tracking-[0.1em] mb-1">
@@ -675,7 +680,7 @@ export default function App() {
             )}
 
             {/* ── Friends tab ── */}
-            {!viewingGameId && !viewingPgn && lobbyTab === 'friends' && (
+            {!viewingGameId && !pgnReviewData && lobbyTab === 'friends' && (
               <div className="max-w-2xl mx-auto">
                 <FriendsPanel
                   token={token}
