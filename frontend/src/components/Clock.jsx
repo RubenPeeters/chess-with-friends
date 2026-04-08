@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 
 /**
  * Countdown clock driven by authoritative server values.
@@ -23,8 +23,11 @@ export function Clock({ serverMs, active, label }) {
   const [, force] = useState(0);
   const rerender = () => force((n) => (n + 1) | 0);
 
-  // Re-anchor on every authoritative server update.
-  useEffect(() => {
+  // Re-anchor on every authoritative server update. Layout-effect so the
+  // synchronous rerender() below commits before paint — `serverMs` and `active`
+  // typically change in the same render (both come from gameState in App.jsx),
+  // and a passive useEffect here would briefly paint the previous anchor first.
+  useLayoutEffect(() => {
     anchorRef.current = { ms: serverMs, t: performance.now(), running: active };
     rerender();
     // `active` is intentionally read but not a dep — the active-flip effect
@@ -33,8 +36,9 @@ export function Clock({ serverMs, active, label }) {
   }, [serverMs]);
 
   // Re-anchor on every active flip — bake the currently displayed value into
-  // the anchor so freeze/unfreeze is seamless.
-  useEffect(() => {
+  // the anchor so freeze/unfreeze is seamless. Layout-effect for the same
+  // pre-paint reason as above.
+  useLayoutEffect(() => {
     const a = anchorRef.current;
     const elapsed = a.running ? performance.now() - a.t : 0;
     anchorRef.current = {
