@@ -3,9 +3,21 @@ import { Board } from './Board.jsx';
 import { EvalBar } from './EvalBar.jsx';
 import { apiFetch } from '../api.js';
 import { identifyOpening } from '../utils/openings.js';
+import { parsePgn } from '../utils/pgn.js';
 import { useStockfish } from '../hooks/useStockfish.js';
 
-export function GameReview({ gameId, token, onClose, inline = false }) {
+/**
+ * Render a finished game (or arbitrary PGN) with a review board, eval bar,
+ * move list and engine analysis.
+ *
+ * Data source is one of:
+ *   - `gameId` — fetched from the social /history/:id endpoint (existing
+ *     "review one of my own games" flow).
+ *   - `pgn`    — parsed locally via `parsePgn` (new "paste any PGN" flow).
+ *
+ * Pass exactly one. The data shape is identical from this component's POV.
+ */
+export function GameReview({ gameId, pgn, token, onClose, inline = false }) {
   const [data, setData]       = useState(null);
   const [cursor, setCursor]   = useState(0); // 0 = start, n = after move n
   const [loading, setLoading] = useState(true);
@@ -14,10 +26,28 @@ export function GameReview({ gameId, token, onClose, inline = false }) {
 
   useEffect(() => {
     setLoading(true); setError(''); setData(null); setCursor(0);
-    apiFetch(`/api/social/history/${gameId}`, { token })
-      .then((d) => { setData(d); setLoading(false); })
-      .catch((e) => { setError(e.message); setLoading(false); });
-  }, [gameId, token]);
+
+    if (pgn) {
+      // Local parse path — synchronous, no network.
+      try {
+        setData(parsePgn(pgn));
+      } catch (err) {
+        setError(err.message);
+      }
+      setLoading(false);
+      return;
+    }
+
+    if (gameId) {
+      apiFetch(`/api/social/history/${gameId}`, { token })
+        .then((d) => { setData(d); setLoading(false); })
+        .catch((e) => { setError(e.message); setLoading(false); });
+      return;
+    }
+
+    setError('No game source provided');
+    setLoading(false);
+  }, [gameId, pgn, token]);
 
   // Trigger Stockfish analysis whenever the position changes (inline/page mode only)
   useEffect(() => {
