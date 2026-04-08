@@ -2,36 +2,67 @@ import { useEffect, useRef, useState } from 'react';
 
 /**
  * Countdown clock driven by authoritative server values.
- * Local rAF tick runs between state_update messages for smooth display.
+ *
+ * Implementation note: the displayed time is *derived* from a timestamp anchor
+ * (`{ ms, t, running }`) on every render — never accumulated into React state.
+ * This makes the clock immune to dropped frames, browser tab throttling, slow
+ * renders, parent re-renders, and React batching: the displayed value is always
+ * `anchor.ms - (perf.now() - anchor.t)` while running, computed fresh.
+ *
+ * The anchor is re-snapshotted in two situations:
+ *   1. `serverMs` changes — a fresh authoritative value arrived from the server.
+ *   2. `active` flips — capture the currently displayed value so the clock
+ *      freezes (or unfreezes) cleanly even if no new `serverMs` accompanies the
+ *      flip (e.g. game ends mid-think).
+ *
+ * `requestAnimationFrame` is used only to trigger re-renders for smooth display
+ * — it never mutates state, so missed frames cannot cause drift.
  */
 export function Clock({ serverMs, active, label }) {
-  const [displayMs, setDisplayMs] = useState(serverMs);
-  const rafRef      = useRef(null);
-  const lastTickRef = useRef(null);
+  const anchorRef = useRef({ ms: serverMs, t: performance.now(), running: active });
+  const [, force] = useState(0);
+  const rerender = () => force((n) => (n + 1) | 0);
 
+  // Re-anchor on every authoritative server update.
   useEffect(() => {
-    setDisplayMs(serverMs);
-    lastTickRef.current = null;
+    anchorRef.current = { ms: serverMs, t: performance.now(), running: active };
+    rerender();
+    // `active` is intentionally read but not a dep — the active-flip effect
+    // below handles transitions independently.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [serverMs]);
 
+  // Re-anchor on every active flip — bake the currently displayed value into
+  // the anchor so freeze/unfreeze is seamless.
   useEffect(() => {
-    if (!active) {
-      if (rafRef.current) cancelAnimationFrame(rafRef.current);
-      return;
-    }
-    const tick = (now) => {
-      if (lastTickRef.current !== null) {
-        setDisplayMs((prev) => Math.max(0, prev - (now - lastTickRef.current)));
-      }
-      lastTickRef.current = now;
-      rafRef.current = requestAnimationFrame(tick);
+    const a = anchorRef.current;
+    const elapsed = a.running ? performance.now() - a.t : 0;
+    anchorRef.current = {
+      ms: Math.max(0, a.ms - elapsed),
+      t: performance.now(),
+      running: active,
     };
-    rafRef.current = requestAnimationFrame(tick);
-    return () => {
-      if (rafRef.current) cancelAnimationFrame(rafRef.current);
-      lastTickRef.current = null;
-    };
+    rerender();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active]);
+
+  // While running, schedule re-renders for smooth display. The value itself is
+  // always derived from the anchor — this loop only paints.
+  useEffect(() => {
+    if (!active) return;
+    let raf;
+    const loop = () => {
+      rerender();
+      raf = requestAnimationFrame(loop);
+    };
+    raf = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(raf);
+  }, [active]);
+
+  // Derive the displayed value freshly from the anchor.
+  const a = anchorRef.current;
+  const elapsed = a.running ? performance.now() - a.t : 0;
+  const displayMs = Math.max(0, a.ms - elapsed);
 
   const minutes = Math.floor(displayMs / 60_000);
   const seconds = Math.floor((displayMs % 60_000) / 1000);
