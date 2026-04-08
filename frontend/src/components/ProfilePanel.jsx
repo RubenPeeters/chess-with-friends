@@ -55,7 +55,7 @@ export function ProfilePanel({ token, user, onLogout = null }) {
                 key={type}
                 onClick={() => setSelectedType(type)}
                 className={[
-                  'flex flex-col gap-0.5 rounded-xl px-3 py-2.5 text-left border-0 cursor-pointer transition-all',
+                  'flex flex-col gap-0.5 rounded-md px-3 py-2.5 text-left border-0 cursor-pointer transition-all',
                   active
                     ? 'bg-primary/10 ring-1 ring-primary/30'
                     : 'bg-surface hover:bg-surface-high',
@@ -75,7 +75,7 @@ export function ProfilePanel({ token, user, onLogout = null }) {
 
         {/* Sparkline for the selected type */}
         {ratingHistory.length >= 2 && (
-          <div className="bg-surface rounded-xl px-3 py-2.5 border border-surface-high mt-1">
+          <div className="bg-surface rounded-md px-3 py-2.5 border border-surface-high mt-1">
             <span className="font-mono text-[0.6rem] text-muted uppercase tracking-[0.06em]">
               {ICONS[selectedType]} {selectedType} history
             </span>

@@ -97,7 +97,7 @@ export function GameReview({ gameId, data: providedData, token, onClose, inline 
         <span className="font-display font-bold text-base text-on-surface">
           {data.game.white_name} vs {data.game.black_name}
         </span>
-        <span className="font-mono text-xs bg-[#f1f2f4] text-muted px-2.5 py-1 rounded-full">
+        <span className="font-mono text-xs bg-[#f1f2f4] text-muted px-2.5 py-1 rounded-sm">
           {data.game.time_control}
         </span>
         <span className="font-mono text-xs text-primary font-bold">{resultLabel}</span>
@@ -125,7 +125,7 @@ export function GameReview({ gameId, data: providedData, token, onClose, inline 
   );
 
   const moveList = (
-    <div className="bg-white rounded-2xl border border-black/[0.04] p-4 h-full overflow-y-auto">
+    <div className="bg-white rounded-md border border-black/[0.04] p-4 h-full overflow-y-auto">
       {movePairs.length === 0 && (
         <p className="font-mono text-xs text-muted text-center py-4">No moves recorded</p>
       )}
@@ -190,7 +190,7 @@ export function GameReview({ gameId, data: providedData, token, onClose, inline 
       className="fixed inset-0 bg-on-surface/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
-      <div className="bg-surface rounded-2xl shadow-[0_24px_64px_rgba(0,0,0,0.2)] w-full max-w-3xl max-h-[92vh] flex flex-col overflow-hidden">
+      <div className="bg-surface rounded-md shadow-[0_24px_64px_rgba(0,0,0,0.2)] w-full max-w-3xl max-h-[92vh] flex flex-col overflow-hidden">
         <div className="flex items-center justify-between px-5 py-4 bg-white border-b border-surface-high flex-shrink-0">
           {gameInfo ?? <div />}
           <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full bg-surface-high hover:bg-surface-highest text-muted border-0 cursor-pointer transition-colors flex-shrink-0 ml-3">✕</button>
@@ -214,7 +214,7 @@ function NavBtn({ children, onClick, disabled, title }) {
       onClick={onClick}
       disabled={disabled}
       title={title}
-      className="w-9 h-9 flex items-center justify-center rounded-xl bg-surface-high text-on-surface border-0 cursor-pointer hover:bg-surface-highest transition-colors disabled:opacity-30 disabled:cursor-not-allowed text-sm font-bold"
+      className="w-9 h-9 flex items-center justify-center rounded-md bg-surface-high text-on-surface border-0 cursor-pointer hover:bg-surface-highest transition-colors disabled:opacity-30 disabled:cursor-not-allowed text-sm font-bold"
     >
       {children}
     </button>

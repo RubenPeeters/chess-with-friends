@@ -24,13 +24,13 @@ export function Leaderboard({ token, onClose, onViewProfile, inline = false }) {
   }, [type, token]);
 
   const typeSelector = (
-    <div className="flex gap-1.5 p-1.5 bg-[#f1f2f4] rounded-2xl w-fit">
+    <div className="flex gap-1.5 p-1.5 bg-[#f1f2f4] rounded-md w-fit">
       {TYPES.map((t) => (
         <button
           key={t.key}
           onClick={() => setType(t.key)}
           className={[
-            'flex items-center gap-1.5 font-body text-sm px-4 py-2 rounded-xl border-0 cursor-pointer transition-all',
+            'flex items-center gap-1.5 font-body text-sm px-4 py-2 rounded-md border-0 cursor-pointer transition-all',
             type === t.key
               ? 'bg-white text-on-surface font-semibold shadow-sm'
               : 'bg-transparent text-muted hover:text-on-surface',
@@ -44,7 +44,7 @@ export function Leaderboard({ token, onClose, onViewProfile, inline = false }) {
   );
 
   const table = (
-    <div className="bg-white rounded-2xl border border-black/[0.04] overflow-hidden mt-5">
+    <div className="bg-white rounded-md border border-black/[0.04] overflow-hidden mt-5">
       {loading && (
         <div className="flex items-center justify-center py-12">
           <p className="font-body text-sm text-muted">Loading…</p>
@@ -113,7 +113,7 @@ export function Leaderboard({ token, onClose, onViewProfile, inline = false }) {
       className="fixed inset-0 bg-on-surface/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
-      <div className="bg-surface rounded-2xl shadow-[0_24px_64px_rgba(0,0,0,0.2)] w-full max-w-md max-h-[88vh] flex flex-col overflow-hidden">
+      <div className="bg-surface rounded-md shadow-[0_24px_64px_rgba(0,0,0,0.2)] w-full max-w-md max-h-[88vh] flex flex-col overflow-hidden">
         <div className="flex items-center justify-between px-5 py-4 bg-white border-b border-surface-high flex-shrink-0">
           <span className="font-display font-bold text-base text-on-surface">Leaderboard</span>
           <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full bg-surface-high hover:bg-surface-highest text-muted border-0 cursor-pointer transition-colors">✕</button>

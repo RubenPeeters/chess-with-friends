@@ -31,12 +31,12 @@ export function HistoryPanel({ token, userId, onViewGame, onViewProfile }) {
   if (loading && games.length === 0) return (
     <div className="flex flex-col gap-3">
       {[...Array(4)].map((_, i) => (
-        <div key={i} className="h-[68px] rounded-2xl bg-surface-high animate-pulse" />
+        <div key={i} className="h-[68px] rounded-md bg-surface-high animate-pulse" />
       ))}
     </div>
   );
   if (error) return (
-    <p className="font-mono text-sm text-danger bg-danger-bg rounded-xl px-4 py-3">{error}</p>
+    <p className="font-mono text-sm text-danger bg-danger-bg rounded-md px-4 py-3">{error}</p>
   );
   if (games.length === 0) return (
     <div className="flex flex-col items-center gap-3 py-16 text-center">
@@ -70,7 +70,7 @@ export function HistoryPanel({ token, userId, onViewGame, onViewProfile }) {
           <div
             key={g.id}
             onClick={() => onViewGame?.(g.id)}
-            className="flex items-stretch rounded-2xl bg-white border border-surface-high overflow-hidden shadow-[0_1px_4px_rgba(0,0,0,0.05)] cursor-pointer hover:border-primary/30 hover:shadow-[0_2px_12px_rgba(0,90,183,0.08)] transition-all"
+            className="flex items-stretch rounded-md bg-white border border-surface-high overflow-hidden shadow-[0_1px_4px_rgba(0,0,0,0.05)] cursor-pointer hover:border-primary/30 hover:shadow-[0_2px_12px_rgba(0,90,183,0.08)] transition-all"
           >
             {/* Left accent bar */}
             <div className={`w-1 flex-shrink-0 ${outcomeConfig.bar} opacity-80`} />
