@@ -30,6 +30,13 @@ function stockfishAssets() {
 
   const srcDir = path.resolve(__dirname, 'node_modules/stockfish/src');
   const destDir = path.resolve(__dirname, 'public/stockfish');
+  // The NNUE filename hash (`nn-5af11540bbfe.nnue`) is the network-weights
+  // file that ships with stockfish@16.0.0 specifically. `package.json` pins
+  // stockfish to an exact version so it's stable today, but if you bump the
+  // dep you MUST also update this filename (and probably the engine/wasm
+  // names too) — `ls node_modules/stockfish/src/nn-*.nnue` to find the new
+  // hash. The plugin's strict-mode check will fail the build loudly if this
+  // ever drifts, so a stale entry won't ship silently.
   const files = [
     'stockfish-nnue-16-single.js',
     'stockfish-nnue-16-single.wasm',
