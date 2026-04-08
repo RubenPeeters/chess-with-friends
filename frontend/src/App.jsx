@@ -820,7 +820,7 @@ export default function App() {
       {challengeBanner}
 
       {viewingGameId && (
-        <GameReview gameId={viewingGameId} token={token} onClose={() => setViewingGameId(null)} />
+        <GameReview gameId={viewingGameId} token={token} onClose={handleCloseReview} />
       )}
       {viewingPlayerId && (
         <PlayerProfile
