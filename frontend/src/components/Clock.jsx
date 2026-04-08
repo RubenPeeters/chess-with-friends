@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useReducer, useRef } from 'react';
 
 /**
  * Countdown clock driven by authoritative server values.
@@ -20,8 +20,9 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
  */
 export function Clock({ serverMs, active, label }) {
   const anchorRef = useRef({ ms: serverMs, t: performance.now(), running: active });
-  const [, force] = useState(0);
-  const rerender = () => force((n) => (n + 1) | 0);
+  // useReducer's dispatch is guaranteed stable by React, so the rAF and layout
+  // effects can close over `rerender` safely without dependency-list churn.
+  const [, rerender] = useReducer((n) => (n + 1) | 0, 0);
 
   // Re-anchor on every authoritative server update. Layout-effect so the
   // synchronous rerender() below commits before paint — `serverMs` and `active`
