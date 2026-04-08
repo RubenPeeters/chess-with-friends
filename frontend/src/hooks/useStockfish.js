@@ -1,12 +1,21 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 
 /**
- * Runs Stockfish as a Web Worker and exposes a simple analyze(fen) API.
- * Evaluation is always normalised to white's perspective (positive = white better).
+ * Runs Stockfish 16 NNUE (single-threaded WASM) as a Web Worker and exposes a
+ * simple analyze(fen) API. Evaluation is always normalised to white's
+ * perspective (positive = white better).
  *
- * Requires /stockfish.js in the public folder.
- * vite.config.js copies it from node_modules automatically.
+ * The worker script and its sibling .wasm + .nnue files are copied from
+ * `node_modules/stockfish/src/` into `public/stockfish/` by the
+ * `stockfishAssets` Vite plugin (see `vite.config.js`) so they're served by
+ * Vite in dev and shipped in `dist/` in production — no manual file copies,
+ * no Dockerfile downloads.
+ *
+ * The single-threaded build is used because the multi-threaded build requires
+ * COOP/COEP cross-origin-isolation headers, which Caddy isn't sending today.
  */
+const STOCKFISH_URL = '/stockfish/stockfish-nnue-16-single.js';
+
 export function useStockfish() {
   const workerRef  = useRef(null);
   const fenTurnRef = useRef('w'); // separate ref — Worker objects don't support custom props
@@ -17,9 +26,9 @@ export function useStockfish() {
   useEffect(() => {
     let worker;
     try {
-      worker = new Worker('/stockfish.js');
+      worker = new Worker(STOCKFISH_URL);
     } catch (e) {
-      console.warn('[Stockfish] Could not load /stockfish.js — does the file exist in public/?', e);
+      console.warn(`[Stockfish] Could not load ${STOCKFISH_URL}:`, e);
       return;
     }
     workerRef.current = worker;
@@ -79,8 +88,11 @@ export function useStockfish() {
     fenTurnRef.current = fen.split(' ')[1] ?? 'w';
     setEvaluation(null);
 
+    // `ucinewgame` is intentionally NOT sent between positions: we're
+    // analysing different positions of the same review session, not starting
+    // a new game, and the prior `stop` is enough to abort any in-flight
+    // search before submitting the new position.
     worker.postMessage('stop');
-    worker.postMessage('ucinewgame');
     worker.postMessage(`position fen ${fen}`);
     worker.postMessage('go depth 18');
   }, [ready]);

@@ -8,13 +8,12 @@ RUN npm install
 
 COPY . .
 
-# Download stockfish.js (classic UCI Web Worker build) directly into public/.
-# Using the nmrugg/stockfish.js release which is the standard browser UCI worker.
-RUN mkdir -p public && \
-    wget -q https://cdn.jsdelivr.net/npm/stockfish@10.0.2/src/stockfish.js \
-         -O public/stockfish.js && \
-    echo "stockfish.js downloaded: $(wc -c < public/stockfish.js) bytes"
-
+# Stockfish 16 NNUE is vendored via the `stockfish` npm package and copied
+# from node_modules into public/stockfish/ by the stockfishAssets Vite plugin
+# (see vite.config.js). The plugin runs at buildStart so `npm run build`
+# below picks up the worker, .wasm and NNUE weights automatically — no
+# external download step needed.
+#
 # In production there is no VITE_WS_BASE_URL — the hook falls back to
 # wss://window.location.host which is correct behind Caddy.
 RUN npm run build
