@@ -80,8 +80,8 @@ export function GameReview({ gameId, token, onClose, inline = false }) {
   );
 
   const boardAndNav = (
-    <div className="flex flex-col items-center gap-4">
-      <Board fen={fen} playerColour="white" onMove={() => {}} gameOver={true} animated={false} />
+    <div className="flex flex-col items-center gap-4 w-full">
+      <Board fen={fen} playerColour="white" onMove={() => {}} gameOver={true} animated={false} maxWidth={680} />
       <div className="flex items-center gap-2">
         <NavBtn onClick={() => setCursor(0)}                                      disabled={cursor === 0}     title="First (Home)">⏮</NavBtn>
         <NavBtn onClick={() => setCursor((c) => Math.max(0, c - 1))}              disabled={cursor === 0}     title="Previous (←)">◀</NavBtn>
@@ -121,23 +121,24 @@ export function GameReview({ gameId, token, onClose, inline = false }) {
   // ── Inline / page mode ───────────────────────────────────────────────────────
   if (inline) {
     return (
-      <div className="max-w-[1100px] mx-auto">
+      <div className="max-w-[1280px] mx-auto">
         {loading && <p className="font-body text-sm text-muted py-12 text-center">Loading game…</p>}
         {error   && <p className="font-mono text-sm text-danger py-12 text-center">{error}</p>}
         {data && (
           <>
             <div className="mb-6">{gameInfo}</div>
-            <div className="grid grid-cols-12 gap-6">
-              <div className="col-span-12 lg:col-span-7 flex gap-3 items-start">
-                {/* Eval bar */}
-                <div className="flex-shrink-0 self-stretch">
+            <div className="flex flex-col lg:flex-row gap-6 items-start">
+              {/* Eval bar + board (dominant centerpiece) */}
+              <div className="flex gap-3 items-stretch flex-1 min-w-0 justify-center">
+                <div className="flex-shrink-0">
                   <EvalBar evaluation={evaluation} orientation="white" />
                 </div>
-                <div className="flex flex-col items-center gap-4 flex-1">
+                <div className="flex-1 min-w-0 max-w-[680px]">
                   {boardAndNav}
                 </div>
               </div>
-              <div className="col-span-12 lg:col-span-5 min-h-0">
+              {/* Move list — fixed-width side panel */}
+              <div className="w-full lg:w-80 flex-shrink-0 lg:h-[680px]">
                 {moveList}
               </div>
             </div>
