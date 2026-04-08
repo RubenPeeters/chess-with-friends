@@ -2,7 +2,7 @@ import { Chessboard } from 'react-chessboard';
 import { Chess } from 'chess.js';
 import { useMemo } from 'react';
 
-export function Board({ fen, playerColour, onMove, gameOver, animated = true }) {
+export function Board({ fen, playerColour, onMove, gameOver, animated = true, maxWidth = 560 }) {
   // Skip building a Chess instance in review mode — onDrop returns false
   // immediately when gameOver is true, so the instance is never used.
   const chess = useMemo(() => {
@@ -24,7 +24,10 @@ export function Board({ fen, playerColour, onMove, gameOver, animated = true }) 
   }
 
   return (
-    <div className="bg-white rounded-2xl p-3 shadow-[0_8px_40px_rgba(0,0,0,0.10)] w-full max-w-[560px] border border-surface-high">
+    <div
+      className="bg-white rounded-2xl p-3 shadow-[0_8px_40px_rgba(0,0,0,0.10)] w-full border border-surface-high"
+      style={{ maxWidth }}
+    >
       <Chessboard
         position={fen === 'start' ? 'start' : fen}
         onPieceDrop={onDrop}
