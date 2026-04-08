@@ -127,18 +127,23 @@ export function GameReview({ gameId, token, onClose, inline = false }) {
         {data && (
           <>
             <div className="mb-6">{gameInfo}</div>
-            <div className="flex flex-col lg:flex-row gap-6 items-start">
+            <div className="flex flex-col lg:flex-row gap-6 lg:items-stretch">
               {/* Eval bar + board (dominant centerpiece) */}
               <div className="flex gap-3 items-stretch flex-1 min-w-0 justify-center">
                 <div className="flex-shrink-0">
                   <EvalBar evaluation={evaluation} orientation="white" />
                 </div>
-                <div className="flex-1 min-w-0 max-w-[680px]">
+                {/* Width cap is enforced by Board's `maxWidth` prop — no
+                    redundant Tailwind class here. */}
+                <div className="flex-1 min-w-0">
                   {boardAndNav}
                 </div>
               </div>
-              {/* Move list — fixed-width side panel */}
-              <div className="w-full lg:w-80 flex-shrink-0 lg:h-[680px]">
+              {/* Move list — fixed-width side panel. No explicit height: the
+                  parent's `lg:items-stretch` makes it grow to match the
+                  board's natural (square) height on every viewport, so the
+                  two columns can never desync. */}
+              <div className="w-full lg:w-80 flex-shrink-0">
                 {moveList}
               </div>
             </div>
