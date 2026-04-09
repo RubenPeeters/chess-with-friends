@@ -86,7 +86,10 @@ export function useStockfish() {
     if (!worker || !ready) return;
 
     fenTurnRef.current = fen.split(' ')[1] ?? 'w';
-    setEvaluation(null);
+
+    // Don't clear evaluation to null here — the previous eval stays visible
+    // until the new search's first depth-4+ info line overwrites it. This
+    // avoids the jarring snap-to-center flash on every position change.
 
     // `ucinewgame` is intentionally NOT sent between positions: we're
     // analysing different positions of the same review session, not starting
