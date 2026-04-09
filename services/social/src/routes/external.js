@@ -1,11 +1,134 @@
 import { Router } from 'express';
+import { Chess } from 'chess.js';
 import pool from '../db.js';
+import { identifyOpening } from '../openings.js';
 
 const router = Router();
 
 const VALID_PLATFORMS = ['lichess', 'chesscom'];
+const MAX_OPENING_HALF_MOVES = 10;
 
-// ── POST /external/link — associate an external platform username ────────────
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
+/** Look up a linked account and verify ownership. */
+async function getOwnedAccount(accountId, userId) {
+  const { rows } = await pool.query(
+    `SELECT * FROM linked_accounts WHERE id = $1 AND user_id = $2`,
+    [accountId, userId]
+  );
+  return rows[0] ?? null;
+}
+
+/**
+ * Parse a single PGN string into the shape we store in `external_games`.
+ * Returns null if the PGN is unparseable.
+ */
+function parseGame(pgn, platform, linkedUsername) {
+  const chess = new Chess();
+  try {
+    chess.loadPgn(pgn);
+  } catch {
+    return null;
+  }
+
+  const headers = chess.header();
+  const verbose = chess.history({ verbose: true });
+  if (verbose.length === 0) return null;
+
+  // Replay to capture FEN after each move
+  const replay = new Chess();
+  const movesJson = verbose.map((m) => {
+    replay.move({ from: m.from, to: m.to, promotion: m.promotion });
+    return { san: m.san, fen: replay.fen() };
+  });
+
+  const sanList = movesJson.map((m) => m.san);
+  const openingMoves = sanList.slice(0, MAX_OPENING_HALF_MOVES).join(' ');
+  const opening = identifyOpening(sanList);
+
+  const whiteName = headers.White ?? 'White';
+  const blackName = headers.Black ?? 'Black';
+  const lowerUser = linkedUsername.toLowerCase();
+  const playerColor =
+    whiteName.toLowerCase() === lowerUser ? 'white' :
+    blackName.toLowerCase() === lowerUser ? 'black' : 'white';
+
+  const resultMap = { '1-0': 'white', '0-1': 'black', '1/2-1/2': 'draw' };
+  const result = resultMap[headers.Result] ?? null;
+
+  // Derive a stable platform game ID
+  let platformGameId;
+  if (platform === 'lichess') {
+    // Lichess Site header: "https://lichess.org/XXXXX"
+    const siteMatch = (headers.Site ?? '').match(/lichess\.org\/(\w+)/);
+    platformGameId = siteMatch ? siteMatch[1] : `${whiteName}-${blackName}-${headers.Date}-${headers.Round}`;
+  } else {
+    // Chess.com Link header or fallback
+    const link = headers.Link ?? headers.Site ?? '';
+    platformGameId = link || `${whiteName}-${blackName}-${headers.Date}-${headers.Round}`;
+  }
+
+  const playedAt = headers.UTCDate && headers.UTCTime
+    ? new Date(`${headers.UTCDate.replace(/\./g, '-')}T${headers.UTCTime}Z`)
+    : headers.Date
+      ? new Date(headers.Date.replace(/\./g, '-'))
+      : null;
+
+  return {
+    platformGameId,
+    whiteName,
+    blackName,
+    playerColor,
+    result,
+    timeControl: headers.TimeControl ?? null,
+    playedAt,
+    pgn,
+    movesJson,
+    openingMoves,
+    eco: opening?.eco ?? null,
+    openingName: opening?.name ?? null,
+  };
+}
+
+// ── Fetchers ─────────────────────────────────────────────────────────────────
+
+async function fetchLichessGames(username, max = 200) {
+  const url = `https://lichess.org/api/games/user/${encodeURIComponent(username)}?max=${max}&pgnInJson=false`;
+  const res = await fetch(url, {
+    headers: { Accept: 'application/x-chess-pgn' },
+  });
+  if (!res.ok) {
+    throw new Error(`Lichess API returned ${res.status}`);
+  }
+  const text = await res.text();
+  // Split multi-game PGN by double newline followed by [Event
+  return text.split(/\n\n(?=\[Event )/).filter((g) => g.trim());
+}
+
+async function fetchChesscomGames(username, months = 3) {
+  const archiveRes = await fetch(
+    `https://api.chess.com/pub/player/${encodeURIComponent(username)}/games/archives`
+  );
+  if (!archiveRes.ok) {
+    throw new Error(`Chess.com API returned ${archiveRes.status}`);
+  }
+  const { archives } = await archiveRes.json();
+  // Fetch the most recent N months
+  const recentArchives = archives.slice(-months);
+
+  const pgns = [];
+  for (const archiveUrl of recentArchives) {
+    const monthRes = await fetch(archiveUrl);
+    if (!monthRes.ok) continue;
+    const { games } = await monthRes.json();
+    for (const game of games) {
+      if (game.pgn) pgns.push(game.pgn);
+    }
+  }
+  return pgns;
+}
+
+// ── POST /external/link ──────────────────────────────────────────────────────
 router.post('/link', async (req, res) => {
   const { platform, username } = req.body;
 
@@ -33,7 +156,7 @@ router.post('/link', async (req, res) => {
   }
 });
 
-// ── GET /external/accounts — list linked accounts for the authed user ────────
+// ── GET /external/accounts ───────────────────────────────────────────────────
 router.get('/accounts', async (req, res) => {
   try {
     const { rows } = await pool.query(
@@ -50,7 +173,7 @@ router.get('/accounts', async (req, res) => {
   }
 });
 
-// ── DELETE /external/accounts/:id — unlink (cascades to cached games) ────────
+// ── DELETE /external/accounts/:id ────────────────────────────────────────────
 router.delete('/accounts/:id', async (req, res) => {
   try {
     const { rowCount } = await pool.query(
@@ -63,6 +186,131 @@ router.delete('/accounts/:id', async (req, res) => {
     return res.json({ deleted: true });
   } catch (err) {
     console.error('[external] unlink error:', err.message);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ── POST /external/accounts/:id/sync — fetch + cache games ──────────────────
+router.post('/accounts/:id/sync', async (req, res) => {
+  try {
+    const account = await getOwnedAccount(req.params.id, req.user.id);
+    if (!account) return res.status(404).json({ error: 'Linked account not found' });
+
+    // Fetch PGNs from the external platform
+    let rawPgns;
+    try {
+      rawPgns = account.platform === 'lichess'
+        ? await fetchLichessGames(account.username)
+        : await fetchChesscomGames(account.username);
+    } catch (err) {
+      console.error(`[external] fetch ${account.platform} error:`, err.message);
+      return res.status(502).json({ error: `Failed to fetch games from ${account.platform}: ${err.message}` });
+    }
+
+    let imported = 0;
+    let skipped = 0;
+
+    for (const rawPgn of rawPgns) {
+      const game = parseGame(rawPgn, account.platform, account.username);
+      if (!game) { skipped++; continue; }
+
+      try {
+        const { rowCount } = await pool.query(
+          `INSERT INTO external_games
+             (linked_account_id, platform, platform_game_id,
+              white_name, black_name, player_color, result, time_control,
+              played_at, pgn, moves_json, opening_moves, eco, opening_name)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+           ON CONFLICT (platform, platform_game_id) DO NOTHING`,
+          [
+            account.id, account.platform, game.platformGameId,
+            game.whiteName, game.blackName, game.playerColor,
+            game.result, game.timeControl,
+            game.playedAt, game.pgn,
+            JSON.stringify(game.movesJson), game.openingMoves,
+            game.eco, game.openingName,
+          ]
+        );
+        if (rowCount > 0) imported++;
+        else skipped++;
+      } catch (err) {
+        console.error(`[external] upsert game error:`, err.message);
+        skipped++;
+      }
+    }
+
+    // Update last_synced_at
+    await pool.query(
+      `UPDATE linked_accounts SET last_synced_at = NOW() WHERE id = $1`,
+      [account.id]
+    );
+
+    return res.json({ imported, skipped });
+  } catch (err) {
+    console.error('[external] sync error:', err.message);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ── GET /external/accounts/:id/games — paginated game list ───────────────────
+router.get('/accounts/:id/games', async (req, res) => {
+  try {
+    const account = await getOwnedAccount(req.params.id, req.user.id);
+    if (!account) return res.status(404).json({ error: 'Linked account not found' });
+
+    const page = Math.max(1, parseInt(req.query.page ?? '1', 10));
+    const limit = Math.min(50, Math.max(1, parseInt(req.query.limit ?? '20', 10)));
+    const offset = (page - 1) * limit;
+
+    const { rows } = await pool.query(
+      `SELECT id, white_name, black_name, player_color, result,
+              time_control, played_at, eco, opening_name
+       FROM external_games
+       WHERE linked_account_id = $1
+       ORDER BY played_at DESC NULLS LAST
+       LIMIT $2 OFFSET $3`,
+      [account.id, limit, offset]
+    );
+
+    const { rows: countRows } = await pool.query(
+      `SELECT COUNT(*)::int AS total FROM external_games WHERE linked_account_id = $1`,
+      [account.id]
+    );
+
+    return res.json({ games: rows, total: countRows[0].total, page, limit });
+  } catch (err) {
+    console.error('[external] list games error:', err.message);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ── GET /external/games/:gameId — single game in GameReview shape ────────────
+router.get('/games/:gameId', async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT eg.*, la.user_id
+       FROM external_games eg
+       JOIN linked_accounts la ON la.id = eg.linked_account_id
+       WHERE eg.id = $1`,
+      [req.params.gameId]
+    );
+    const game = rows[0];
+    if (!game || game.user_id !== req.user.id) {
+      return res.status(404).json({ error: 'Game not found' });
+    }
+
+    // Return in the same shape GameReview expects (mirrors social /history/:id)
+    return res.json({
+      game: {
+        white_name: game.white_name,
+        black_name: game.black_name,
+        time_control: game.time_control,
+        result: game.result,
+      },
+      moves: game.moves_json,
+    });
+  } catch (err) {
+    console.error('[external] get game error:', err.message);
     return res.status(500).json({ error: 'Internal server error' });
   }
 });
