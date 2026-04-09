@@ -1,7 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { apiFetch } from '../api.js';
+import { OpeningTree } from './OpeningTree.jsx';
 
 export function ExternalGames({ account, token, onViewGame, onBack }) {
+  const [view, setView]       = useState('games'); // 'games' | 'openings'
   const [games, setGames]     = useState([]);
   const [total, setTotal]     = useState(0);
   const [page, setPage]       = useState(1);
@@ -60,6 +62,21 @@ export function ExternalGames({ account, token, onViewGame, onBack }) {
           {account.username}'s games
         </h3>
         <span className="font-mono text-xs text-muted">{total} games</span>
+        {/* View toggle */}
+        <div className="ml-auto flex items-center gap-1 bg-surface-high rounded-md p-0.5">
+          {['games', 'openings'].map((v) => (
+            <button
+              key={v}
+              onClick={() => setView(v)}
+              className={[
+                'font-body text-xs font-semibold px-3 py-1.5 rounded-sm border-0 cursor-pointer transition-all capitalize',
+                view === v ? 'bg-white text-on-surface shadow-sm' : 'bg-transparent text-muted hover:text-on-surface',
+              ].join(' ')}
+            >
+              {v}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Error banner */}
@@ -67,12 +84,17 @@ export function ExternalGames({ account, token, onViewGame, onBack }) {
         <p className="font-mono text-xs text-danger bg-danger-bg rounded-md px-4 py-2.5">{error}</p>
       )}
 
+      {/* Opening tree view */}
+      {view === 'openings' && (
+        <OpeningTree accountId={account.id} token={token} />
+      )}
+
       {/* Game list */}
-      {loading ? (
+      {view === 'games' && loading ? (
         <p className="font-body text-sm text-muted text-center py-8">Loading games…</p>
-      ) : !error && games.length === 0 ? (
+      ) : view === 'games' && !error && games.length === 0 ? (
         <p className="font-body text-sm text-muted text-center py-8">No games synced yet. Go back and click Sync.</p>
-      ) : (
+      ) : view === 'games' ? (
         <div className="flex flex-col gap-2">
           {games.map((g) => (
             <button
@@ -100,10 +122,10 @@ export function ExternalGames({ account, token, onViewGame, onBack }) {
             </button>
           ))}
         </div>
-      )}
+      ) : null}
 
       {/* Pagination */}
-      {totalPages > 1 && (
+      {view === 'games' && totalPages > 1 && (
         <div className="flex items-center justify-center gap-3 py-2">
           <button
             onClick={() => setPage((p) => Math.max(1, p - 1))}
