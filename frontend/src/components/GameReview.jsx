@@ -110,9 +110,9 @@ export function GameReview({ gameId, data: providedData, token, onClose, inline 
     </div>
   );
 
-  const boardAndNav = (
-    <div className="flex flex-col items-center gap-4 w-full">
-      <Board fen={fen} playerColour="white" onMove={() => {}} gameOver={true} animated={false} maxWidth={680} />
+  // Shared navigation controls — used by both inline and modal layouts.
+  const navControls = (
+    <>
       <div className="flex items-center gap-2">
         <NavBtn onClick={() => setCursor(0)}                                      disabled={cursor === 0}     title="First (Home)">⏮</NavBtn>
         <NavBtn onClick={() => setCursor((c) => Math.max(0, c - 1))}              disabled={cursor === 0}     title="Previous (←)">◀</NavBtn>
@@ -121,6 +121,13 @@ export function GameReview({ gameId, data: providedData, token, onClose, inline 
         <NavBtn onClick={() => setCursor(total)}                                   disabled={cursor === total} title="Last (End)">⏭</NavBtn>
       </div>
       <p className="font-mono text-[0.65rem] text-muted/60">Use ← → arrow keys to navigate</p>
+    </>
+  );
+
+  const boardAndNav = (
+    <div className="flex flex-col items-center gap-4 w-full">
+      <Board fen={fen} playerColour="white" onMove={() => {}} gameOver={true} animated={false} maxWidth={680} />
+      {navControls}
     </div>
   );
 
@@ -170,14 +177,7 @@ export function GameReview({ gameId, data: providedData, token, onClose, inline 
                   <Board fen={fen} playerColour="white" onMove={() => {}} gameOver={true} animated={false} maxWidth={680} />
                 </div>
                 {/* Navigation + tip below the board row */}
-                <div className="flex items-center gap-2">
-                  <NavBtn onClick={() => setCursor(0)}                                      disabled={cursor === 0}     title="First (Home)">⏮</NavBtn>
-                  <NavBtn onClick={() => setCursor((c) => Math.max(0, c - 1))}              disabled={cursor === 0}     title="Previous (←)">◀</NavBtn>
-                  <span className="font-mono text-sm text-muted w-20 text-center tabular-nums">{cursor} / {total}</span>
-                  <NavBtn onClick={() => setCursor((c) => Math.min(total, c + 1))}          disabled={cursor === total} title="Next (→)">▶</NavBtn>
-                  <NavBtn onClick={() => setCursor(total)}                                   disabled={cursor === total} title="Last (End)">⏭</NavBtn>
-                </div>
-                <p className="font-mono text-[0.65rem] text-muted/60">Use ← → arrow keys to navigate</p>
+                {navControls}
               </div>
               {/* Move list — fixed-width side panel */}
               <div className="w-full lg:w-80 flex-shrink-0">

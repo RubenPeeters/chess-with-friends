@@ -1,3 +1,5 @@
+const BAR_WIDTH = 28;
+
 /**
  * Vertical evaluation bar — white at the bottom, black at the top.
  * Eval is always from white's perspective (positive = white better).
@@ -34,7 +36,7 @@ export function EvalBar({ evaluation, orientation = 'white' }) {
   const labelTop = Math.max(6, Math.min(94, topPct));
 
   return (
-    <div className="flex flex-col items-center gap-1 select-none h-full" style={{ width: 28 }}>
+    <div className="flex flex-col items-center gap-1 select-none h-full" style={{ width: BAR_WIDTH }}>
       {/* Depth indicator */}
       {evaluation?.depth && (
         <span className="font-mono text-[0.5rem] text-muted leading-none">
