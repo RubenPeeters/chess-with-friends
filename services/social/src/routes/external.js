@@ -4,12 +4,14 @@ import pool from '../db.js';
 const router = Router();
 
 const VALID_PLATFORMS = ['lichess', 'chesscom'];
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 // ── POST /external/link — associate an external platform username ────────────
 router.post('/link', async (req, res) => {
   const { platform, username } = req.body;
+  const trimmedUsername = (username ?? '').trim();
 
-  if (!platform || !username) {
+  if (!platform || !trimmedUsername) {
     return res.status(400).json({ error: 'platform and username are required' });
   }
   if (!VALID_PLATFORMS.includes(platform)) {
@@ -21,7 +23,7 @@ router.post('/link', async (req, res) => {
       `INSERT INTO linked_accounts (user_id, platform, username)
        VALUES ($1, $2, $3)
        RETURNING id, platform, username, linked_at, last_synced_at`,
-      [req.user.id, platform, username.trim()]
+      [req.user.id, platform, trimmedUsername]
     );
     return res.status(201).json(rows[0]);
   } catch (err) {
@@ -52,6 +54,9 @@ router.get('/accounts', async (req, res) => {
 
 // ── DELETE /external/accounts/:id — unlink (cascades to cached games) ────────
 router.delete('/accounts/:id', async (req, res) => {
+  if (!UUID_RE.test(req.params.id)) {
+    return res.status(400).json({ error: 'Invalid account id' });
+  }
   try {
     const { rowCount } = await pool.query(
       `DELETE FROM linked_accounts WHERE id = $1 AND user_id = $2`,

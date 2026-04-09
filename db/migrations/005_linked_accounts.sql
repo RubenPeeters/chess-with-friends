@@ -40,12 +40,20 @@ CREATE TABLE IF NOT EXISTS external_games (
     opening_name        TEXT,
 
     CONSTRAINT external_games_platform_game_unique
-        UNIQUE (platform, platform_game_id)
+        UNIQUE (platform, platform_game_id),
+    CONSTRAINT external_games_platform_check
+        CHECK (platform IN ('lichess', 'chesscom')),
+    CONSTRAINT external_games_player_color_check
+        CHECK (player_color IN ('white', 'black')),
+    CONSTRAINT external_games_result_check
+        CHECK (result IS NULL OR result IN ('white', 'black', 'draw'))
 );
 
 CREATE INDEX IF NOT EXISTS idx_external_games_account
     ON external_games (linked_account_id);
 CREATE INDEX IF NOT EXISTS idx_external_games_account_date
     ON external_games (linked_account_id, played_at DESC);
+-- text_pattern_ops enables btree prefix matching for LIKE 'e4 e5%' queries
+-- used by the opening-tree aggregation endpoint.
 CREATE INDEX IF NOT EXISTS idx_external_games_account_opening
-    ON external_games (linked_account_id, opening_moves);
+    ON external_games (linked_account_id, opening_moves text_pattern_ops);
