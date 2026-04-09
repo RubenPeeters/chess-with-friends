@@ -29,23 +29,20 @@ export function EvalBar({ evaluation, orientation = 'white' }) {
     return abs >= 10 ? Math.round(abs).toString() : abs.toFixed(1);
   })();
 
-  const whiteWinning = !evaluation
-    || (evaluation.mate !== null ? evaluation.mate > 0 : evaluation.cp >= 0);
-
   // Clamp the label so it doesn't overflow the bar at extreme evals.
   const labelTop = Math.max(6, Math.min(94, topPct));
+  // Label color depends on which half it sits over, NOT on who's winning —
+  // orientation can flip the bar so whiteWinning alone would pick the wrong
+  // contrast. topPct > 50 means the dark (black) half is the majority and
+  // the label is in the dark zone.
+  const labelOnDark = topPct > 50;
 
   return (
-    <div className="flex flex-col items-center gap-1 select-none h-full" style={{ width: BAR_WIDTH }}>
-      {/* Depth indicator */}
-      {evaluation?.depth && (
-        <span className="font-mono text-[0.5rem] text-muted leading-none">
-          d{evaluation.depth}
-        </span>
-      )}
-
-      {/* Bar — relative so the eval label can float at the split point */}
-      <div className="relative flex-1 w-full rounded-sm overflow-hidden flex flex-col border border-black/10">
+    <div className="select-none h-full" style={{ width: BAR_WIDTH }}>
+      {/* Bar — owns the full stretched height. Depth badge and eval label
+          are absolutely positioned inside so they don't eat into the bar's
+          height (which must match the board exactly). */}
+      <div className="relative w-full h-full rounded-sm overflow-hidden flex flex-col border border-black/10">
         {/* Top portion (black's side) */}
         <div
           className="bg-[#1c1c1c] transition-all duration-300 ease-out"
@@ -56,6 +53,13 @@ export function EvalBar({ evaluation, orientation = 'white' }) {
           className="bg-[#f0f0f0] transition-all duration-300 ease-out"
           style={{ height: `${bottomPct}%` }}
         />
+        {/* Depth indicator — absolutely positioned at the top so it doesn't
+            reduce the bar's height */}
+        {evaluation?.depth && (
+          <span className="absolute top-1 left-1/2 -translate-x-1/2 font-mono text-[0.5rem] text-white/50 leading-none pointer-events-none z-10">
+            d{evaluation.depth}
+          </span>
+        )}
         {/* Eval label — centered at the split between black and white */}
         <div
           className="absolute inset-x-0 flex justify-center pointer-events-none transition-all duration-300 ease-out"
@@ -63,7 +67,7 @@ export function EvalBar({ evaluation, orientation = 'white' }) {
         >
           <span className={[
             'font-mono text-[0.55rem] font-semibold leading-none',
-            whiteWinning ? 'text-black/50' : 'text-white/70',
+            labelOnDark ? 'text-white/70' : 'text-black/50',
           ].join(' ')}>
             {evalText}
           </span>
