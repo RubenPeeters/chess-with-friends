@@ -3,9 +3,9 @@ const BAR_WIDTH = 28;
 /**
  * Vertical evaluation bar — white at the bottom, black at the top.
  * Eval is always from white's perspective (positive = white better).
- * The numeric eval label floats at the dividing line between the two
- * halves, so it's centered when the position is equal and tracks the
- * split as the eval shifts.
+ * The numeric eval label is fixed at the vertical center of the bar;
+ * the black/white split animates behind it. Text color adapts for
+ * contrast based on which half currently covers the center.
  */
 export function EvalBar({ evaluation, orientation = 'white' }) {
   // Map centipawns to white's share of the bar (0–100%).
@@ -29,12 +29,10 @@ export function EvalBar({ evaluation, orientation = 'white' }) {
     return abs >= 10 ? Math.round(abs).toString() : abs.toFixed(1);
   })();
 
-  // Clamp the label so it doesn't overflow the bar at extreme evals.
-  const labelTop = Math.max(6, Math.min(94, topPct));
-  // Label color depends on which half it sits over, NOT on who's winning —
-  // orientation can flip the bar so whiteWinning alone would pick the wrong
-  // contrast. topPct > 50 means the dark (black) half is the majority and
-  // the label is in the dark zone.
+  // Label sits at the fixed vertical center (50%) of the bar — it never
+  // moves, only the split behind it shifts. Text color adapts to whichever
+  // half currently covers the center: dark (black) half is topPct% tall, so
+  // when topPct > 50 the center is inside the dark zone.
   const labelOnDark = topPct > 50;
 
   return (
@@ -60,11 +58,8 @@ export function EvalBar({ evaluation, orientation = 'white' }) {
             d{evaluation.depth}
           </span>
         )}
-        {/* Eval label — centered at the split between black and white */}
-        <div
-          className="absolute inset-x-0 flex justify-center pointer-events-none transition-all duration-300 ease-out"
-          style={{ top: `${labelTop}%`, transform: 'translateY(-50%)' }}
-        >
+        {/* Eval label — fixed at the vertical center of the bar */}
+        <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 flex justify-center pointer-events-none">
           <span className={[
             'font-mono text-[0.55rem] font-semibold leading-none',
             labelOnDark ? 'text-white/70' : 'text-black/50',
