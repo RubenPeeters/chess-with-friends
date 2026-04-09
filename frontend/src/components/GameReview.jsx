@@ -110,9 +110,9 @@ export function GameReview({ gameId, data: providedData, token, onClose, inline 
     </div>
   );
 
-  const boardAndNav = (
-    <div className="flex flex-col items-center gap-4 w-full">
-      <Board fen={fen} playerColour="white" onMove={() => {}} gameOver={true} animated={false} maxWidth={680} />
+  // Shared navigation controls — used by both inline and modal layouts.
+  const navControls = (
+    <>
       <div className="flex items-center gap-2">
         <NavBtn onClick={() => setCursor(0)}                                      disabled={cursor === 0}     title="First (Home)">⏮</NavBtn>
         <NavBtn onClick={() => setCursor((c) => Math.max(0, c - 1))}              disabled={cursor === 0}     title="Previous (←)">◀</NavBtn>
@@ -121,6 +121,13 @@ export function GameReview({ gameId, data: providedData, token, onClose, inline 
         <NavBtn onClick={() => setCursor(total)}                                   disabled={cursor === total} title="Last (End)">⏭</NavBtn>
       </div>
       <p className="font-mono text-[0.65rem] text-muted/60">Use ← → arrow keys to navigate</p>
+    </>
+  );
+
+  const boardAndNav = (
+    <div className="flex flex-col items-center gap-4 w-full">
+      <Board fen={fen} playerColour="white" onMove={() => {}} gameOver={true} animated={false} maxWidth={680} />
+      {navControls}
     </div>
   );
 
@@ -158,22 +165,21 @@ export function GameReview({ gameId, data: providedData, token, onClose, inline 
         {data && (
           <>
             <div className="mb-6">{gameInfo}</div>
-            <div className="flex flex-col lg:flex-row gap-6 lg:items-stretch">
-              {/* Eval bar + board (dominant centerpiece) */}
-              <div className="flex gap-3 items-stretch flex-1 min-w-0 justify-center">
-                <div className="flex-shrink-0">
-                  <EvalBar evaluation={evaluation} orientation="white" />
+            <div className="flex flex-col lg:flex-row gap-6 lg:items-start">
+              {/* Board column — eval bar sits *next to the board*, not the
+                  entire nav stack, so its height matches the board exactly. */}
+              <div className="flex flex-col items-center gap-4 flex-1 min-w-0">
+                {/* Eval bar + board row */}
+                <div className="flex gap-3 items-stretch w-full justify-center">
+                  <div className="flex-shrink-0">
+                    <EvalBar evaluation={evaluation} orientation="white" />
+                  </div>
+                  <Board fen={fen} playerColour="white" onMove={() => {}} gameOver={true} animated={false} maxWidth={680} />
                 </div>
-                {/* Width cap is enforced by Board's `maxWidth` prop — no
-                    redundant Tailwind class here. */}
-                <div className="flex-1 min-w-0">
-                  {boardAndNav}
-                </div>
+                {/* Navigation + tip below the board row */}
+                {navControls}
               </div>
-              {/* Move list — fixed-width side panel. No explicit height: the
-                  parent's `lg:items-stretch` makes it grow to match the
-                  board's natural (square) height on every viewport, so the
-                  two columns can never desync. */}
+              {/* Move list — fixed-width side panel */}
               <div className="w-full lg:w-80 flex-shrink-0">
                 {moveList}
               </div>
