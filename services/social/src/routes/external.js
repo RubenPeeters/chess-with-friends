@@ -315,4 +315,100 @@ router.get('/games/:gameId', async (req, res) => {
   }
 });
 
+// ── GET /external/accounts/:id/openings — opening tree aggregation ───────────
+router.get('/accounts/:id/openings', async (req, res) => {
+  try {
+    const account = await getOwnedAccount(req.params.id, req.user.id);
+    if (!account) return res.status(404).json({ error: 'Linked account not found' });
+
+    // `moves` query param: space-separated SAN prefix, e.g. "e4 e5 Nf3".
+    // Empty / omitted = root level (first-move stats).
+    const prefix = (req.query.moves ?? '').trim();
+    const prefixDepth = prefix ? prefix.split(' ').length : 0;
+
+    // Find all games whose opening_moves start with the prefix, then extract
+    // the next move token after the prefix for grouping.
+    //
+    // opening_moves stores the first 10 half-moves as a space-separated string.
+    // For root level (empty prefix) we match all games and extract the 1st token.
+    // For deeper levels we match "prefix %" and extract the token after the prefix.
+    let queryText;
+    let queryParams;
+
+    if (!prefix) {
+      // Root level — group by the first move
+      queryText = `
+        SELECT
+          split_part(opening_moves, ' ', 1) AS next_move,
+          COUNT(*)::int AS count,
+          COUNT(*) FILTER (WHERE result = player_color)::int AS wins,
+          COUNT(*) FILTER (WHERE result = 'draw')::int AS draws,
+          COUNT(*) FILTER (WHERE result IS NOT NULL AND result != 'draw' AND result != player_color)::int AS losses
+        FROM external_games
+        WHERE linked_account_id = $1
+          AND opening_moves IS NOT NULL
+          AND opening_moves != ''
+        GROUP BY next_move
+        ORDER BY count DESC`;
+      queryParams = [account.id];
+    } else {
+      // Deeper level — match prefix, extract next token
+      // We need games where opening_moves starts with "prefix " (note the trailing space)
+      // or opening_moves equals exactly the prefix (leaf node — no next move).
+      // For grouping, extract token at position (prefixDepth + 1).
+      queryText = `
+        SELECT
+          split_part(opening_moves, ' ', $2) AS next_move,
+          COUNT(*)::int AS count,
+          COUNT(*) FILTER (WHERE result = player_color)::int AS wins,
+          COUNT(*) FILTER (WHERE result = 'draw')::int AS draws,
+          COUNT(*) FILTER (WHERE result IS NOT NULL AND result != 'draw' AND result != player_color)::int AS losses
+        FROM external_games
+        WHERE linked_account_id = $1
+          AND opening_moves LIKE $3
+        GROUP BY next_move
+        HAVING split_part(opening_moves, ' ', $2) != ''
+        ORDER BY count DESC`;
+      queryParams = [account.id, prefixDepth + 1, prefix + ' %'];
+    }
+
+    const { rows } = await pool.query(queryText, queryParams);
+
+    // Compute win rates and totals
+    let totalGames = 0;
+    let totalWins = 0;
+    let totalDraws = 0;
+    let totalLosses = 0;
+    const moves = rows.map((r) => {
+      totalGames += r.count;
+      totalWins += r.wins;
+      totalDraws += r.draws;
+      totalLosses += r.losses;
+      return {
+        move: r.next_move,
+        count: r.count,
+        wins: r.wins,
+        draws: r.draws,
+        losses: r.losses,
+        winRate: r.count > 0 ? Math.round((r.wins / r.count) * 1000) / 1000 : 0,
+      };
+    });
+
+    return res.json({
+      prefix: prefix || null,
+      totalGames,
+      stats: {
+        wins: totalWins,
+        draws: totalDraws,
+        losses: totalLosses,
+        winRate: totalGames > 0 ? Math.round((totalWins / totalGames) * 1000) / 1000 : 0,
+      },
+      moves,
+    });
+  } catch (err) {
+    console.error('[external] openings error:', err.message);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 export default router;
