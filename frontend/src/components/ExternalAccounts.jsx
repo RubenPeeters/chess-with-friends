@@ -49,6 +49,7 @@ export function ExternalAccounts({ token, onSelectAccount }) {
   }
 
   async function handleSync(accountId) {
+    if (syncing) return; // prevent concurrent syncs
     setSyncing(accountId); setSyncResult(null);
     try {
       const result = await apiFetch(`/api/social/external/accounts/${accountId}/sync`, {
@@ -65,6 +66,7 @@ export function ExternalAccounts({ token, onSelectAccount }) {
   }
 
   async function handleUnlink(accountId) {
+    if (!window.confirm('Unlink this account? All imported games will be deleted.')) return;
     try {
       await apiFetch(`/api/social/external/accounts/${accountId}`, {
         token,
@@ -84,8 +86,9 @@ export function ExternalAccounts({ token, onSelectAccount }) {
         <h3 className="font-display font-bold text-base text-on-surface mb-4">Link an account</h3>
         <form onSubmit={handleLink} className="flex items-end gap-3">
           <div className="flex flex-col gap-1.5">
-            <span className="font-mono text-[0.6rem] text-muted uppercase tracking-[0.07em]">Platform</span>
+            <label htmlFor="ext-platform" className="font-mono text-[0.6rem] text-muted uppercase tracking-[0.07em]">Platform</label>
             <select
+              id="ext-platform"
               className="px-3 py-2.5 bg-[#f1f2f4] rounded-md border-0 outline-none font-body text-sm text-on-surface cursor-pointer"
               value={platform}
               onChange={(e) => setPlatform(e.target.value)}
@@ -96,8 +99,9 @@ export function ExternalAccounts({ token, onSelectAccount }) {
             </select>
           </div>
           <div className="flex flex-col gap-1.5 flex-1">
-            <span className="font-mono text-[0.6rem] text-muted uppercase tracking-[0.07em]">Username</span>
+            <label htmlFor="ext-username" className="font-mono text-[0.6rem] text-muted uppercase tracking-[0.07em]">Username</label>
             <input
+              id="ext-username"
               className="px-4 py-2.5 bg-[#f1f2f4] rounded-md border-0 outline-none focus:ring-2 focus:ring-primary/30 font-mono text-xs text-on-surface placeholder:text-muted/50 transition-all"
               placeholder="e.g. DrNykterstein"
               value={username}
@@ -150,7 +154,7 @@ export function ExternalAccounts({ token, onSelectAccount }) {
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => handleSync(acct.id)}
-                    disabled={isSyncing}
+                    disabled={!!syncing}
                     className="py-2 px-4 bg-surface-high text-on-surface rounded-md font-body font-semibold text-xs border-0 cursor-pointer hover:bg-surface-highest transition-all disabled:opacity-50"
                   >
                     {isSyncing ? 'Syncing…' : 'Sync'}

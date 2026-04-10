@@ -6,10 +6,11 @@ export function ExternalGames({ account, token, onViewGame, onBack }) {
   const [total, setTotal]     = useState(0);
   const [page, setPage]       = useState(1);
   const [loading, setLoading] = useState(true);
+  const [error, setError]     = useState('');
   const limit = 20;
 
   const fetchGames = useCallback(async () => {
-    setLoading(true);
+    setLoading(true); setError('');
     try {
       const data = await apiFetch(
         `/api/social/external/accounts/${account.id}/games?page=${page}&limit=${limit}`,
@@ -18,7 +19,7 @@ export function ExternalGames({ account, token, onViewGame, onBack }) {
       setGames(data.games);
       setTotal(data.total);
     } catch (err) {
-      console.error('[external] fetch games:', err.message);
+      setError(err.message);
     } finally {
       setLoading(false);
     }
@@ -29,11 +30,12 @@ export function ExternalGames({ account, token, onViewGame, onBack }) {
   const totalPages = Math.ceil(total / limit);
 
   async function handleViewGame(gameId) {
+    setError('');
     try {
       const data = await apiFetch(`/api/social/external/games/${gameId}`, { token });
       onViewGame(data);
     } catch (err) {
-      console.error('[external] fetch game detail:', err.message);
+      setError(`Failed to load game: ${err.message}`);
     }
   }
 
@@ -60,10 +62,15 @@ export function ExternalGames({ account, token, onViewGame, onBack }) {
         <span className="font-mono text-xs text-muted">{total} games</span>
       </div>
 
+      {/* Error banner */}
+      {error && (
+        <p className="font-mono text-xs text-danger bg-danger-bg rounded-md px-4 py-2.5">{error}</p>
+      )}
+
       {/* Game list */}
       {loading ? (
         <p className="font-body text-sm text-muted text-center py-8">Loading games…</p>
-      ) : games.length === 0 ? (
+      ) : !error && games.length === 0 ? (
         <p className="font-body text-sm text-muted text-center py-8">No games synced yet. Go back and click Sync.</p>
       ) : (
         <div className="flex flex-col gap-2">
