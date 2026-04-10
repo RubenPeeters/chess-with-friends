@@ -96,9 +96,23 @@ function parseGame(pgn, platform, linkedUsername) {
 
 // ── Fetchers ─────────────────────────────────────────────────────────────────
 
+const FETCH_TIMEOUT_MS = 15_000;
+
+/** fetch() with an AbortController timeout so a slow upstream can't hold an
+ *  Express worker open indefinitely. */
+async function fetchWithTimeout(url, init = {}) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 async function fetchLichessGames(username, max = 200) {
   const url = `https://lichess.org/api/games/user/${encodeURIComponent(username)}?max=${max}&pgnInJson=false`;
-  const res = await fetch(url, {
+  const res = await fetchWithTimeout(url, {
     headers: { Accept: 'application/x-chess-pgn' },
   });
   if (!res.ok) {
@@ -110,7 +124,7 @@ async function fetchLichessGames(username, max = 200) {
 }
 
 async function fetchChesscomGames(username, months = 3) {
-  const archiveRes = await fetch(
+  const archiveRes = await fetchWithTimeout(
     `https://api.chess.com/pub/player/${encodeURIComponent(username)}/games/archives`
   );
   if (!archiveRes.ok) {
@@ -122,7 +136,7 @@ async function fetchChesscomGames(username, months = 3) {
 
   const pgns = [];
   for (const archiveUrl of recentArchives) {
-    const monthRes = await fetch(archiveUrl);
+    const monthRes = await fetchWithTimeout(archiveUrl);
     if (!monthRes.ok) continue;
     const { games } = await monthRes.json();
     for (const game of games) {
