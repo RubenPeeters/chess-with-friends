@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Chess } from 'chess.js';
 import { Board } from './Board.jsx';
 import { identifyOpening } from '../utils/openings.js';
@@ -8,23 +8,31 @@ export function OpeningTree({ accountId, token }) {
   const [moves, setMoves]       = useState([]);   // current move prefix as array of SAN
   const [data, setData]         = useState(null);  // API response
   const [loading, setLoading]   = useState(true);
+  const [error, setError]       = useState('');
+  // Guard against stale responses: rapid drill-down/breadcrumb clicks can
+  // fire multiple requests, and a slow earlier response could overwrite a
+  // newer one. Track the latest request ID and discard anything that doesn't
+  // match.
+  const requestIdRef = useRef(0);
 
   const prefix = moves.join(' ');
 
   const fetchOpenings = useCallback(async () => {
-    setLoading(true);
+    const id = ++requestIdRef.current;
+    setLoading(true); setError('');
     try {
       const params = prefix ? `?moves=${encodeURIComponent(prefix)}` : '';
       const result = await apiFetch(
         `/api/social/external/accounts/${accountId}/openings${params}`,
         { token }
       );
+      if (id !== requestIdRef.current) return; // stale response
       setData(result);
     } catch (err) {
-      console.error('[opening-tree] fetch error:', err.message);
-      setData({ totalGames: 0, stats: { wins: 0, draws: 0, losses: 0, winRate: 0 }, moves: [] });
+      if (id !== requestIdRef.current) return;
+      setError(err.message);
     } finally {
-      setLoading(false);
+      if (id === requestIdRef.current) setLoading(false);
     }
   }, [accountId, token, prefix]);
 
@@ -108,6 +116,8 @@ export function OpeningTree({ accountId, token }) {
         <div className="flex-1 min-w-0">
           {loading ? (
             <p className="font-body text-sm text-muted py-8 text-center">Loading…</p>
+          ) : error ? (
+            <p className="font-mono text-xs text-danger bg-danger-bg rounded-md px-4 py-2.5">{error}</p>
           ) : !data || data.moves.length === 0 ? (
             <p className="font-body text-sm text-muted py-8 text-center">No games at this depth.</p>
           ) : (

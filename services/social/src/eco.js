@@ -32,7 +32,7 @@ const ECO = [
   { eco: 'A45', name: 'Trompowsky Attack',   moves: 'd4 Nf6 Bg5' },
   { eco: 'A80', name: 'Dutch Defence',       moves: 'd4 f5' },
   { eco: 'A84', name: 'Dutch Defence',       moves: 'd4 f5 c4' },
-  { eco: 'A00', name: "Queen's Pawn Game",   moves: 'd4 d5' },
+  { eco: 'D00', name: "Queen's Pawn Game",   moves: 'd4 d5' },
 
   // ── Queen's Gambit ─────────────────────────────────────────────────────
   { eco: 'D06', name: "Queen's Gambit",                      moves: 'd4 d5 c4' },
