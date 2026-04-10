@@ -9,19 +9,22 @@ const PLATFORMS = [
 export function ExternalAccounts({ token, onSelectAccount }) {
   const [accounts, setAccounts] = useState([]);
   const [loading, setLoading]   = useState(true);
+  const [fetchError, setFetchError] = useState('');
   const [platform, setPlatform] = useState('lichess');
   const [username, setUsername] = useState('');
   const [linkError, setLinkError] = useState('');
   const [linking, setLinking]     = useState(false);
   const [syncing, setSyncing]     = useState(null); // account id being synced
   const [syncResult, setSyncResult] = useState(null);
+  const [unlinkError, setUnlinkError] = useState('');
 
   const fetchAccounts = useCallback(async () => {
+    setFetchError('');
     try {
       const rows = await apiFetch('/api/social/external/accounts', { token });
       setAccounts(rows);
     } catch (e) {
-      console.error('[external] fetch accounts:', e.message);
+      setFetchError(e.message);
     } finally {
       setLoading(false);
     }
@@ -67,6 +70,7 @@ export function ExternalAccounts({ token, onSelectAccount }) {
 
   async function handleUnlink(accountId) {
     if (!window.confirm('Unlink this account? All imported games will be deleted.')) return;
+    setUnlinkError('');
     try {
       await apiFetch(`/api/social/external/accounts/${accountId}`, {
         token,
@@ -75,7 +79,7 @@ export function ExternalAccounts({ token, onSelectAccount }) {
       setAccounts((prev) => prev.filter((a) => a.id !== accountId));
       if (syncResult?.id === accountId) setSyncResult(null);
     } catch (err) {
-      console.error('[external] unlink error:', err.message);
+      setUnlinkError(err.message);
     }
   }
 
@@ -122,10 +126,18 @@ export function ExternalAccounts({ token, onSelectAccount }) {
         )}
       </div>
 
+      {/* Errors */}
+      {fetchError && (
+        <p className="font-mono text-xs text-danger bg-danger-bg rounded-md px-4 py-2.5">{fetchError}</p>
+      )}
+      {unlinkError && (
+        <p className="font-mono text-xs text-danger bg-danger-bg rounded-md px-4 py-2.5">Unlink failed: {unlinkError}</p>
+      )}
+
       {/* Account list */}
       {loading ? (
         <p className="font-body text-sm text-muted text-center py-8">Loading accounts…</p>
-      ) : accounts.length === 0 ? (
+      ) : !fetchError && accounts.length === 0 ? (
         <p className="font-body text-sm text-muted text-center py-8">No linked accounts yet. Link one above to get started.</p>
       ) : (
         <div className="flex flex-col gap-3">
