@@ -162,8 +162,11 @@ router.post('/link', async (req, res) => {
       ? `https://lichess.org/api/user/${encodeURIComponent(trimmedUsername)}`
       : `https://api.chess.com/pub/player/${encodeURIComponent(trimmedUsername)}`;
     const checkRes = await fetchWithTimeout(checkUrl);
-    if (!checkRes.ok) {
+    if (checkRes.status === 404) {
       return res.status(422).json({ error: `Username "${trimmedUsername}" not found on ${platform}` });
+    }
+    if (!checkRes.ok) {
+      return res.status(502).json({ error: `${platform} returned ${checkRes.status} while verifying username` });
     }
   } catch (err) {
     return res.status(502).json({ error: `Could not verify username on ${platform}: ${err.message}` });
