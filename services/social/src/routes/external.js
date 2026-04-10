@@ -11,8 +11,10 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
-/** Look up a linked account and verify ownership. */
+/** Look up a linked account and verify ownership. Returns null for
+ *  invalid UUIDs or non-matching rows (callers treat both as 404). */
 async function getOwnedAccount(accountId, userId) {
+  if (!UUID_RE.test(accountId)) return null;
   const { rows } = await pool.query(
     `SELECT * FROM linked_accounts WHERE id = $1 AND user_id = $2`,
     [accountId, userId]
@@ -257,7 +259,7 @@ router.post('/accounts/:id/sync', async (req, res) => {
               white_name, black_name, player_color, result, time_control,
               played_at, pgn, moves_json, opening_moves, eco, opening_name)
            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
-           ON CONFLICT (platform, platform_game_id) DO NOTHING`,
+           ON CONFLICT (linked_account_id, platform_game_id) DO NOTHING`,
           [
             account.id, account.platform, game.platformGameId,
             game.whiteName, game.blackName, game.playerColor,
@@ -294,8 +296,8 @@ router.get('/accounts/:id/games', async (req, res) => {
     const account = await getOwnedAccount(req.params.id, req.user.id);
     if (!account) return res.status(404).json({ error: 'Linked account not found' });
 
-    const page = Math.max(1, parseInt(req.query.page ?? '1', 10));
-    const limit = Math.min(50, Math.max(1, parseInt(req.query.limit ?? '20', 10)));
+    const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+    const limit = Math.min(50, Math.max(1, parseInt(req.query.limit, 10) || 20));
     const offset = (page - 1) * limit;
 
     const { rows } = await pool.query(
@@ -322,6 +324,9 @@ router.get('/accounts/:id/games', async (req, res) => {
 
 // ── GET /external/games/:gameId — single game in GameReview shape ────────────
 router.get('/games/:gameId', async (req, res) => {
+  if (!UUID_RE.test(req.params.gameId)) {
+    return res.status(400).json({ error: 'Invalid game id' });
+  }
   try {
     const { rows } = await pool.query(
       `SELECT eg.*, la.user_id
@@ -392,6 +397,10 @@ router.get('/accounts/:id/openings', async (req, res) => {
       // We need games where opening_moves starts with "prefix " (note the trailing space)
       // or opening_moves equals exactly the prefix (leaf node — no next move).
       // For grouping, extract token at position (prefixDepth + 1).
+      // Include exact-prefix games ($3) AND continuation games ($4) so leaf
+      // nodes at the storage depth limit contribute to totals. The HAVING
+      // clause filters exact-prefix rows out of the grouped next-move list
+      // (they have no next token) while keeping them in the aggregate count.
       queryText = `
         SELECT
           split_part(opening_moves, ' ', $2) AS next_move,
@@ -401,11 +410,11 @@ router.get('/accounts/:id/openings', async (req, res) => {
           COUNT(*) FILTER (WHERE result IS NOT NULL AND result != 'draw' AND result != player_color)::int AS losses
         FROM external_games
         WHERE linked_account_id = $1
-          AND opening_moves LIKE $3
+          AND (opening_moves = $3 OR opening_moves LIKE $4)
         GROUP BY next_move
         HAVING split_part(opening_moves, ' ', $2) != ''
         ORDER BY count DESC`;
-      queryParams = [account.id, prefixDepth + 1, prefix + ' %'];
+      queryParams = [account.id, prefixDepth + 1, prefix, escapedPrefix + ' %'];
     }
 
     const { rows } = await pool.query(queryText, queryParams);
