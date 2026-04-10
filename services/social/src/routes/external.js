@@ -6,11 +6,8 @@ import { identifyOpening } from '../openings.js';
 const router = Router();
 
 const VALID_PLATFORMS = ['lichess', 'chesscom'];
-<<<<<<< feat/external-accounts-ui
 const MAX_OPENING_HALF_MOVES = 10;
-=======
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
->>>>>>> main
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -156,6 +153,20 @@ router.post('/link', async (req, res) => {
   }
   if (!VALID_PLATFORMS.includes(platform)) {
     return res.status(400).json({ error: `platform must be one of: ${VALID_PLATFORMS.join(', ')}` });
+  }
+
+  // Verify the username exists on the remote platform before creating
+  // the linked account — avoids storing typos that would fail on sync.
+  try {
+    const checkUrl = platform === 'lichess'
+      ? `https://lichess.org/api/user/${encodeURIComponent(trimmedUsername)}`
+      : `https://api.chess.com/pub/player/${encodeURIComponent(trimmedUsername)}`;
+    const checkRes = await fetchWithTimeout(checkUrl);
+    if (!checkRes.ok) {
+      return res.status(422).json({ error: `Username "${trimmedUsername}" not found on ${platform}` });
+    }
+  } catch (err) {
+    return res.status(502).json({ error: `Could not verify username on ${platform}: ${err.message}` });
   }
 
   try {
