@@ -139,7 +139,7 @@ const ECO = [
   { eco: 'B91', name: 'Sicilian, Najdorf, Zagreb Variation',moves: 'e4 c5 Nf3 d6 d4 cxd4 Nxd4 Nf6 Nc3 a6 Bg5' },
   { eco: 'B92', name: 'Sicilian, Najdorf, Opocensky Var.',  moves: 'e4 c5 Nf3 d6 d4 cxd4 Nxd4 Nf6 Nc3 a6 Be2' },
   { eco: 'B94', name: 'Sicilian, Najdorf, 6.Bg5',           moves: 'e4 c5 Nf3 d6 d4 cxd4 Nxd4 Nf6 Nc3 a6 Bg5 Nbd7' },
-  { eco: 'B96', name: 'Sicilian, Najdorf, Poisoned Pawn',   moves: 'e4 c5 Nf3 d6 d4 cxd4 Nxd4 Nf6 Nc3 a6 Bg5 e6 f4 Qb6' },
+  { eco: 'B96', name: 'Sicilian, Najdorf, Poisoned Pawn',   moves: 'e4 c5 Nf3 d6 d4 cxd4 Nxd4 Nf6 Nc3 a6 Bg5 e6 f4' },
   { eco: 'B97', name: 'Sicilian, Najdorf, 7...Qb6',         moves: 'e4 c5 Nf3 d6 d4 cxd4 Nxd4 Nf6 Nc3 a6 Bg5 e6 f4 Qb6' },
 
   // ── Scandinavian ────────────────────────────────────────────────────────
@@ -187,7 +187,7 @@ const ECO = [
   { eco: 'C55', name: 'Two Knights Defence',       moves: 'e4 e5 Nf3 Nc6 Bc4 Nf6' },
   { eco: 'C56', name: 'Two Knights, Max Lange',    moves: 'e4 e5 Nf3 Nc6 Bc4 Nf6 d4 exd4 O-O' },
   { eco: 'C57', name: 'Two Knights, Fried Liver',  moves: 'e4 e5 Nf3 Nc6 Bc4 Nf6 Ng5 d5 exd5 Nxd5 Nxf7' },
-  { eco: 'C58', name: 'Two Knights, 5.g5 d5',      moves: 'e4 e5 Nf3 Nc6 Bc4 Nf6 Ng5 d5 exd5 Na5' },
+  { eco: 'C58', name: 'Two Knights, 4.Ng5 d5',     moves: 'e4 e5 Nf3 Nc6 Bc4 Nf6 Ng5 d5 exd5 Na5' },
 
   // ── Ruy Lopez ──────────────────────────────────────────────────────────
   { eco: 'C60', name: 'Ruy Lopez',                         moves: 'e4 e5 Nf3 Nc6 Bb5' },

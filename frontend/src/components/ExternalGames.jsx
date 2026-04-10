@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { apiFetch } from '../api.js';
 import { OpeningTree } from './OpeningTree.jsx';
 
@@ -10,20 +10,24 @@ export function ExternalGames({ account, token, onViewGame, onBack }) {
   const [loading, setLoading] = useState(true);
   const [error, setError]     = useState('');
   const limit = 20;
+  const fetchIdRef = useRef(0);
 
   const fetchGames = useCallback(async () => {
+    const id = ++fetchIdRef.current;
     setLoading(true); setError('');
     try {
       const data = await apiFetch(
         `/api/social/external/accounts/${account.id}/games?page=${page}&limit=${limit}`,
         { token }
       );
+      if (id !== fetchIdRef.current) return; // stale response from rapid page change
       setGames(data.games);
       setTotal(data.total);
     } catch (err) {
+      if (id !== fetchIdRef.current) return;
       setError(err.message);
     } finally {
-      setLoading(false);
+      if (id === fetchIdRef.current) setLoading(false);
     }
   }, [account.id, token, page]);
 
