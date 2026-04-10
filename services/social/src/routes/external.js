@@ -336,4 +336,113 @@ router.get('/games/:gameId', async (req, res) => {
   }
 });
 
+// ── GET /external/accounts/:id/openings — opening tree aggregation ───────────
+router.get('/accounts/:id/openings', async (req, res) => {
+  try {
+    const account = await getOwnedAccount(req.params.id, req.user.id);
+    if (!account) return res.status(404).json({ error: 'Linked account not found' });
+
+    // Validate and normalize `moves` — could be an array if the query param
+    // is repeated (?moves=e4&moves=e5), and may contain extra whitespace.
+    const rawMoves = req.query.moves;
+    if (rawMoves != null && typeof rawMoves !== 'string') {
+      return res.status(400).json({ error: 'moves must be a space-separated string' });
+    }
+    const prefix = (rawMoves ?? '').trim().replace(/\s+/g, ' ');
+    // Escape LIKE metacharacters so user input can't widen the pattern match.
+    const escapedPrefix = prefix.replace(/\\/g, '\\\\').replace(/%/g, '\\%').replace(/_/g, '\\_');
+    const prefixDepth = prefix ? prefix.split(' ').length : 0;
+
+    // ── Next-move grouping query ────────────────────────────────────────
+    // Groups games by the next move after the prefix. Leaf-node games
+    // (opening_moves = prefix exactly, no continuation) are excluded from
+    // the grouping (HAVING next_move != '') but included in the totals
+    // via a separate aggregate query below.
+    let groupQuery;
+    let groupParams;
+
+    if (!prefix) {
+      groupQuery = `
+        SELECT
+          split_part(opening_moves, ' ', 1) AS next_move,
+          COUNT(*) FILTER (WHERE result IS NOT NULL)::int AS count,
+          COUNT(*) FILTER (WHERE result = player_color)::int AS wins,
+          COUNT(*) FILTER (WHERE result = 'draw')::int AS draws,
+          COUNT(*) FILTER (WHERE result IS NOT NULL AND result != 'draw' AND result != player_color)::int AS losses
+        FROM external_games
+        WHERE linked_account_id = $1
+          AND opening_moves IS NOT NULL
+          AND opening_moves != ''
+        GROUP BY next_move
+        ORDER BY count DESC`;
+      groupParams = [account.id];
+    } else {
+      groupQuery = `
+        SELECT
+          split_part(opening_moves, ' ', $2) AS next_move,
+          COUNT(*) FILTER (WHERE result IS NOT NULL)::int AS count,
+          COUNT(*) FILTER (WHERE result = player_color)::int AS wins,
+          COUNT(*) FILTER (WHERE result = 'draw')::int AS draws,
+          COUNT(*) FILTER (WHERE result IS NOT NULL AND result != 'draw' AND result != player_color)::int AS losses
+        FROM external_games
+        WHERE linked_account_id = $1
+          AND (opening_moves = $3 OR opening_moves LIKE $4 ESCAPE '\')
+        GROUP BY next_move
+        HAVING split_part(opening_moves, ' ', $2) != ''
+        ORDER BY count DESC`;
+      groupParams = [account.id, prefixDepth + 1, prefix, escapedPrefix + ' %'];
+    }
+
+    const { rows } = await pool.query(groupQuery, groupParams);
+
+    // ── Aggregate totals (including leaf-node games) ────────────────────
+    // Count all games matching the prefix (exact OR prefix+continuation)
+    // so leaf nodes at the storage depth limit are included in totalGames.
+    const totalQuery = prefix
+      ? `SELECT
+           COUNT(*) FILTER (WHERE result IS NOT NULL)::int AS total,
+           COUNT(*) FILTER (WHERE result = player_color)::int AS wins,
+           COUNT(*) FILTER (WHERE result = 'draw')::int AS draws,
+           COUNT(*) FILTER (WHERE result IS NOT NULL AND result != 'draw' AND result != player_color)::int AS losses
+         FROM external_games
+         WHERE linked_account_id = $1
+           AND (opening_moves = $2 OR opening_moves LIKE $3 ESCAPE '\')`
+      : `SELECT
+           COUNT(*) FILTER (WHERE result IS NOT NULL)::int AS total,
+           COUNT(*) FILTER (WHERE result = player_color)::int AS wins,
+           COUNT(*) FILTER (WHERE result = 'draw')::int AS draws,
+           COUNT(*) FILTER (WHERE result IS NOT NULL AND result != 'draw' AND result != player_color)::int AS losses
+         FROM external_games
+         WHERE linked_account_id = $1
+           AND opening_moves IS NOT NULL
+           AND opening_moves != ''`;
+    const totalParams = prefix ? [account.id, prefix, escapedPrefix + ' %'] : [account.id];
+    const { rows: [totals] } = await pool.query(totalQuery, totalParams);
+
+    const moves = rows.map((r) => ({
+      move: r.next_move,
+      count: r.count,
+      wins: r.wins,
+      draws: r.draws,
+      losses: r.losses,
+      winRate: r.count > 0 ? Math.round((r.wins / r.count) * 1000) / 1000 : 0,
+    }));
+
+    return res.json({
+      prefix: prefix || null,
+      totalGames: totals.total,
+      stats: {
+        wins: totals.wins,
+        draws: totals.draws,
+        losses: totals.losses,
+        winRate: totals.total > 0 ? Math.round((totals.wins / totals.total) * 1000) / 1000 : 0,
+      },
+      moves,
+    });
+  } catch (err) {
+    console.error('[external] openings error:', err.message);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 export default router;
