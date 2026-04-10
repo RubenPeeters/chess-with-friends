@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { apiFetch } from '../api.js';
 
 const PLATFORMS = [
@@ -17,16 +17,20 @@ export function ExternalAccounts({ token, onSelectAccount }) {
   const [syncing, setSyncing]     = useState(null); // account id being synced
   const [syncResult, setSyncResult] = useState(null);
   const [unlinkError, setUnlinkError] = useState('');
+  const fetchIdRef = useRef(0);
 
   const fetchAccounts = useCallback(async () => {
+    const id = ++fetchIdRef.current;
     setFetchError('');
     try {
       const rows = await apiFetch('/api/social/external/accounts', { token });
+      if (id !== fetchIdRef.current) return; // stale response
       setAccounts(rows);
     } catch (e) {
+      if (id !== fetchIdRef.current) return;
       setFetchError(e.message);
     } finally {
-      setLoading(false);
+      if (id === fetchIdRef.current) setLoading(false);
     }
   }, [token]);
 
@@ -52,7 +56,7 @@ export function ExternalAccounts({ token, onSelectAccount }) {
   }
 
   async function handleSync(accountId) {
-    if (syncing) return; // prevent concurrent syncs
+    if (syncing !== null) return; // prevent concurrent syncs
     setSyncing(accountId); setSyncResult(null);
     try {
       const result = await apiFetch(`/api/social/external/accounts/${accountId}/sync`, {
@@ -166,7 +170,7 @@ export function ExternalAccounts({ token, onSelectAccount }) {
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => handleSync(acct.id)}
-                    disabled={!!syncing}
+                    disabled={syncing !== null}
                     className="py-2 px-4 bg-surface-high text-on-surface rounded-md font-body font-semibold text-xs border-0 cursor-pointer hover:bg-surface-highest transition-all disabled:opacity-50"
                   >
                     {isSyncing ? 'Syncing…' : 'Sync'}
