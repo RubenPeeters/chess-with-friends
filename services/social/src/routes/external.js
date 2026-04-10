@@ -95,9 +95,23 @@ function parseGame(pgn, platform, linkedUsername) {
 
 // ── Fetchers ─────────────────────────────────────────────────────────────────
 
+const FETCH_TIMEOUT_MS = 15_000;
+
+/** fetch() with an AbortController timeout so a slow upstream can't hold an
+ *  Express worker open indefinitely. */
+async function fetchWithTimeout(url, init = {}) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 async function fetchLichessGames(username, max = 200) {
   const url = `https://lichess.org/api/games/user/${encodeURIComponent(username)}?max=${max}&pgnInJson=false`;
-  const res = await fetch(url, {
+  const res = await fetchWithTimeout(url, {
     headers: { Accept: 'application/x-chess-pgn' },
   });
   if (!res.ok) {
@@ -109,7 +123,7 @@ async function fetchLichessGames(username, max = 200) {
 }
 
 async function fetchChesscomGames(username, months = 3) {
-  const archiveRes = await fetch(
+  const archiveRes = await fetchWithTimeout(
     `https://api.chess.com/pub/player/${encodeURIComponent(username)}/games/archives`
   );
   if (!archiveRes.ok) {
@@ -121,7 +135,7 @@ async function fetchChesscomGames(username, months = 3) {
 
   const pgns = [];
   for (const archiveUrl of recentArchives) {
-    const monthRes = await fetch(archiveUrl);
+    const monthRes = await fetchWithTimeout(archiveUrl);
     if (!monthRes.ok) continue;
     const { games } = await monthRes.json();
     for (const game of games) {
@@ -228,7 +242,7 @@ router.post('/accounts/:id/sync', async (req, res) => {
               white_name, black_name, player_color, result, time_control,
               played_at, pgn, moves_json, opening_moves, eco, opening_name)
            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
-           ON CONFLICT (platform, platform_game_id) DO NOTHING`,
+           ON CONFLICT (linked_account_id, platform_game_id) DO NOTHING`,
           [
             account.id, account.platform, game.platformGameId,
             game.whiteName, game.blackName, game.playerColor,
@@ -265,8 +279,8 @@ router.get('/accounts/:id/games', async (req, res) => {
     const account = await getOwnedAccount(req.params.id, req.user.id);
     if (!account) return res.status(404).json({ error: 'Linked account not found' });
 
-    const page = Math.max(1, parseInt(req.query.page ?? '1', 10));
-    const limit = Math.min(50, Math.max(1, parseInt(req.query.limit ?? '20', 10)));
+    const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+    const limit = Math.min(50, Math.max(1, parseInt(req.query.limit, 10) || 20));
     const offset = (page - 1) * limit;
 
     const { rows } = await pool.query(
