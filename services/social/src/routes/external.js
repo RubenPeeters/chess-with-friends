@@ -321,26 +321,28 @@ router.get('/accounts/:id/openings', async (req, res) => {
     const account = await getOwnedAccount(req.params.id, req.user.id);
     if (!account) return res.status(404).json({ error: 'Linked account not found' });
 
-    // `moves` query param: space-separated SAN prefix, e.g. "e4 e5 Nf3".
-    // Empty / omitted = root level (first-move stats).
-    const prefix = (req.query.moves ?? '').trim();
+    // Validate and normalize `moves` — could be an array if the query param
+    // is repeated (?moves=e4&moves=e5), and may contain extra whitespace.
+    const rawMoves = req.query.moves;
+    if (rawMoves != null && typeof rawMoves !== 'string') {
+      return res.status(400).json({ error: 'moves must be a space-separated string' });
+    }
+    const prefix = (rawMoves ?? '').trim().replace(/\s+/g, ' ');
     const prefixDepth = prefix ? prefix.split(' ').length : 0;
 
-    // Find all games whose opening_moves start with the prefix, then extract
-    // the next move token after the prefix for grouping.
-    //
-    // opening_moves stores the first 10 half-moves as a space-separated string.
-    // For root level (empty prefix) we match all games and extract the 1st token.
-    // For deeper levels we match "prefix %" and extract the token after the prefix.
-    let queryText;
-    let queryParams;
+    // ── Next-move grouping query ────────────────────────────────────────
+    // Groups games by the next move after the prefix. Leaf-node games
+    // (opening_moves = prefix exactly, no continuation) are excluded from
+    // the grouping (HAVING next_move != '') but included in the totals
+    // via a separate aggregate query below.
+    let groupQuery;
+    let groupParams;
 
     if (!prefix) {
-      // Root level — group by the first move
-      queryText = `
+      groupQuery = `
         SELECT
           split_part(opening_moves, ' ', 1) AS next_move,
-          COUNT(*)::int AS count,
+          COUNT(*) FILTER (WHERE result IS NOT NULL)::int AS count,
           COUNT(*) FILTER (WHERE result = player_color)::int AS wins,
           COUNT(*) FILTER (WHERE result = 'draw')::int AS draws,
           COUNT(*) FILTER (WHERE result IS NOT NULL AND result != 'draw' AND result != player_color)::int AS losses
@@ -350,58 +352,67 @@ router.get('/accounts/:id/openings', async (req, res) => {
           AND opening_moves != ''
         GROUP BY next_move
         ORDER BY count DESC`;
-      queryParams = [account.id];
+      groupParams = [account.id];
     } else {
-      // Deeper level — match prefix, extract next token
-      // We need games where opening_moves starts with "prefix " (note the trailing space)
-      // or opening_moves equals exactly the prefix (leaf node — no next move).
-      // For grouping, extract token at position (prefixDepth + 1).
-      queryText = `
+      groupQuery = `
         SELECT
           split_part(opening_moves, ' ', $2) AS next_move,
-          COUNT(*)::int AS count,
+          COUNT(*) FILTER (WHERE result IS NOT NULL)::int AS count,
           COUNT(*) FILTER (WHERE result = player_color)::int AS wins,
           COUNT(*) FILTER (WHERE result = 'draw')::int AS draws,
           COUNT(*) FILTER (WHERE result IS NOT NULL AND result != 'draw' AND result != player_color)::int AS losses
         FROM external_games
         WHERE linked_account_id = $1
-          AND opening_moves LIKE $3
+          AND (opening_moves = $3 OR opening_moves LIKE $4)
         GROUP BY next_move
         HAVING split_part(opening_moves, ' ', $2) != ''
         ORDER BY count DESC`;
-      queryParams = [account.id, prefixDepth + 1, prefix + ' %'];
+      groupParams = [account.id, prefixDepth + 1, prefix, prefix + ' %'];
     }
 
-    const { rows } = await pool.query(queryText, queryParams);
+    const { rows } = await pool.query(groupQuery, groupParams);
 
-    // Compute win rates and totals
-    let totalGames = 0;
-    let totalWins = 0;
-    let totalDraws = 0;
-    let totalLosses = 0;
-    const moves = rows.map((r) => {
-      totalGames += r.count;
-      totalWins += r.wins;
-      totalDraws += r.draws;
-      totalLosses += r.losses;
-      return {
-        move: r.next_move,
-        count: r.count,
-        wins: r.wins,
-        draws: r.draws,
-        losses: r.losses,
-        winRate: r.count > 0 ? Math.round((r.wins / r.count) * 1000) / 1000 : 0,
-      };
-    });
+    // ── Aggregate totals (including leaf-node games) ────────────────────
+    // Count all games matching the prefix (exact OR prefix+continuation)
+    // so leaf nodes at the storage depth limit are included in totalGames.
+    const totalQuery = prefix
+      ? `SELECT
+           COUNT(*) FILTER (WHERE result IS NOT NULL)::int AS total,
+           COUNT(*) FILTER (WHERE result = player_color)::int AS wins,
+           COUNT(*) FILTER (WHERE result = 'draw')::int AS draws,
+           COUNT(*) FILTER (WHERE result IS NOT NULL AND result != 'draw' AND result != player_color)::int AS losses
+         FROM external_games
+         WHERE linked_account_id = $1
+           AND (opening_moves = $2 OR opening_moves LIKE $3)`
+      : `SELECT
+           COUNT(*) FILTER (WHERE result IS NOT NULL)::int AS total,
+           COUNT(*) FILTER (WHERE result = player_color)::int AS wins,
+           COUNT(*) FILTER (WHERE result = 'draw')::int AS draws,
+           COUNT(*) FILTER (WHERE result IS NOT NULL AND result != 'draw' AND result != player_color)::int AS losses
+         FROM external_games
+         WHERE linked_account_id = $1
+           AND opening_moves IS NOT NULL
+           AND opening_moves != ''`;
+    const totalParams = prefix ? [account.id, prefix, prefix + ' %'] : [account.id];
+    const { rows: [totals] } = await pool.query(totalQuery, totalParams);
+
+    const moves = rows.map((r) => ({
+      move: r.next_move,
+      count: r.count,
+      wins: r.wins,
+      draws: r.draws,
+      losses: r.losses,
+      winRate: r.count > 0 ? Math.round((r.wins / r.count) * 1000) / 1000 : 0,
+    }));
 
     return res.json({
       prefix: prefix || null,
-      totalGames,
+      totalGames: totals.total,
       stats: {
-        wins: totalWins,
-        draws: totalDraws,
-        losses: totalLosses,
-        winRate: totalGames > 0 ? Math.round((totalWins / totalGames) * 1000) / 1000 : 0,
+        wins: totals.wins,
+        draws: totals.draws,
+        losses: totals.losses,
+        winRate: totals.total > 0 ? Math.round((totals.wins / totals.total) * 1000) / 1000 : 0,
       },
       moves,
     });
