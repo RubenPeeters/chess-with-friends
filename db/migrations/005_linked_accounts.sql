@@ -42,10 +42,8 @@ CREATE TABLE IF NOT EXISTS external_games (
     eco                 TEXT,
     opening_name        TEXT,
 
-    -- Per-account unique: allows the same game to exist under different linked
-    -- accounts (e.g. two users both link the same lichess username).
-    CONSTRAINT external_games_account_game_unique
-        UNIQUE (linked_account_id, platform_game_id),
+    CONSTRAINT external_games_platform_game_unique
+        UNIQUE (platform, platform_game_id),
     -- Composite FK ensures platform can't disagree with the linked account's platform.
     CONSTRAINT external_games_account_platform_fk
         FOREIGN KEY (linked_account_id, platform)
