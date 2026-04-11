@@ -139,7 +139,7 @@ const ECO = [
   { eco: 'B91', name: 'Sicilian, Najdorf, Zagreb Variation',moves: 'e4 c5 Nf3 d6 d4 cxd4 Nxd4 Nf6 Nc3 a6 Bg5' },
   { eco: 'B92', name: 'Sicilian, Najdorf, Opocensky Var.',  moves: 'e4 c5 Nf3 d6 d4 cxd4 Nxd4 Nf6 Nc3 a6 Be2' },
   { eco: 'B94', name: 'Sicilian, Najdorf, 6.Bg5',           moves: 'e4 c5 Nf3 d6 d4 cxd4 Nxd4 Nf6 Nc3 a6 Bg5 Nbd7' },
-  { eco: 'B96', name: 'Sicilian, Najdorf, Poisoned Pawn',   moves: 'e4 c5 Nf3 d6 d4 cxd4 Nxd4 Nf6 Nc3 a6 Bg5 e6 f4' },
+  { eco: 'B96', name: 'Sicilian, Najdorf, 7.f4',            moves: 'e4 c5 Nf3 d6 d4 cxd4 Nxd4 Nf6 Nc3 a6 Bg5 e6 f4' },
   { eco: 'B97', name: 'Sicilian, Najdorf, 7...Qb6',         moves: 'e4 c5 Nf3 d6 d4 cxd4 Nxd4 Nf6 Nc3 a6 Bg5 e6 f4 Qb6' },
 
   // ── Scandinavian ────────────────────────────────────────────────────────
