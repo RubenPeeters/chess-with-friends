@@ -112,13 +112,17 @@ function parseGame(pgn, platform, linkedUsername) {
 
 const FETCH_TIMEOUT_MS = 15_000;
 
-/** fetch() with an AbortController timeout so a slow upstream can't hold an
- *  Express worker open indefinitely. */
-async function fetchWithTimeout(url, init = {}) {
+/** fetch() + body consumption under a single AbortController timeout, so a
+ *  slow upstream can't hold an Express worker open indefinitely — even if
+ *  it sends headers promptly and then stalls the body. The handler callback
+ *  runs the body read (via res.text() / res.json()) inside the same try
+ *  block as the fetch itself, and the timeout covers the full lifecycle. */
+async function fetchWithTimeout(url, init = {}, handler = (r) => r) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
   try {
-    return await fetch(url, { ...init, signal: controller.signal });
+    const res = await fetch(url, { ...init, signal: controller.signal });
+    return await handler(res);
   } finally {
     clearTimeout(timer);
   }
@@ -126,35 +130,47 @@ async function fetchWithTimeout(url, init = {}) {
 
 async function fetchLichessGames(username, max = 200) {
   const url = `https://lichess.org/api/games/user/${encodeURIComponent(username)}?max=${max}&pgnInJson=false`;
-  const res = await fetchWithTimeout(url, {
-    headers: { Accept: 'application/x-chess-pgn' },
-  });
-  if (!res.ok) {
-    throw new Error(`Lichess API returned ${res.status}`);
-  }
-  const text = await res.text();
+  const text = await fetchWithTimeout(
+    url,
+    { headers: { Accept: 'application/x-chess-pgn' } },
+    async (res) => {
+      if (!res.ok) throw new Error(`Lichess API returned ${res.status}`);
+      return res.text();
+    }
+  );
   // Split multi-game PGN by double newline followed by [Event
   return text.split(/\n\n(?=\[Event )/).filter((g) => g.trim());
 }
 
 async function fetchChesscomGames(username, months = 3) {
-  const archiveRes = await fetchWithTimeout(
-    `https://api.chess.com/pub/player/${encodeURIComponent(username)}/games/archives`
+  const archivesJson = await fetchWithTimeout(
+    `https://api.chess.com/pub/player/${encodeURIComponent(username)}/games/archives`,
+    {},
+    async (res) => {
+      if (!res.ok) throw new Error(`Chess.com API returned ${res.status}`);
+      return res.json();
+    }
   );
-  if (!archiveRes.ok) {
-    throw new Error(`Chess.com API returned ${archiveRes.status}`);
-  }
-  const { archives = [] } = await archiveRes.json();
+  const { archives = [] } = archivesJson;
   // Fetch the most recent N months
   const recentArchives = archives.slice(-months);
 
   const pgns = [];
   for (const archiveUrl of recentArchives) {
-    const monthRes = await fetchWithTimeout(archiveUrl);
-    if (!monthRes.ok) continue;
-    const { games = [] } = await monthRes.json();
-    for (const game of games) {
-      if (game.pgn) pgns.push(game.pgn);
+    try {
+      const monthJson = await fetchWithTimeout(archiveUrl, {}, async (res) => {
+        if (!res.ok) return null;
+        return res.json();
+      });
+      if (!monthJson) continue;
+      const { games = [] } = monthJson;
+      for (const game of games) {
+        if (game.pgn) pgns.push(game.pgn);
+      }
+    } catch {
+      // Individual archive failures (timeout, network blip) shouldn't abort
+      // the whole sync — just skip the month and continue.
+      continue;
     }
   }
   return pgns;
@@ -432,7 +448,7 @@ router.get('/accounts/:id/openings', async (req, res) => {
           COUNT(*) FILTER (WHERE result IS NOT NULL AND result != 'draw' AND result != player_color)::int AS losses
         FROM external_games
         WHERE linked_account_id = $1
-          AND (opening_moves = $3 OR opening_moves LIKE $4 ESCAPE '\')
+          AND (opening_moves = $3 OR opening_moves LIKE $4 ESCAPE '\\')
         GROUP BY next_move
         HAVING split_part(opening_moves, ' ', $2) != ''
         ORDER BY count DESC`;
@@ -454,7 +470,7 @@ router.get('/accounts/:id/openings', async (req, res) => {
            COUNT(*) FILTER (WHERE result IS NOT NULL AND result != 'draw' AND result != player_color)::int AS losses
          FROM external_games
          WHERE linked_account_id = $1
-           AND (opening_moves = $2 OR opening_moves LIKE $3 ESCAPE '\')`
+           AND (opening_moves = $2 OR opening_moves LIKE $3 ESCAPE '\\')`
       : `SELECT
            COUNT(*)::int AS total,
            COUNT(*) FILTER (WHERE result = player_color)::int AS wins,
