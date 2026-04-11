@@ -7,6 +7,8 @@ import { FriendsPanel } from './components/FriendsPanel.jsx';
 import { GameReview } from './components/GameReview.jsx';
 import { PlayerProfile } from './components/PlayerProfile.jsx';
 import { Leaderboard } from './components/Leaderboard.jsx';
+import { ExternalAccounts } from './components/ExternalAccounts.jsx';
+import { ExternalGames } from './components/ExternalGames.jsx';
 import { useGameSocket } from './hooks/useGameSocket.js';
 import { useNotifications } from './hooks/useNotifications.js';
 import { apiFetch } from './api.js';
@@ -73,6 +75,7 @@ export default function App() {
   // GameReview never has to re-parse the same input. Raw textarea content
   // lives in `pgnInput` for back-to-edit preservation.
   const [pgnReviewData, setPgnReviewData]           = useState(null);
+  const [selectedExtAccount, setSelectedExtAccount] = useState(null);
 
   const { gameState, sendMove, sendResign, sendDrawOffer, sendDrawAccept, connected } =
     useGameSocket(gameId, token);
@@ -376,6 +379,7 @@ export default function App() {
       { key: 'play',        icon: '♟', label: 'Play' },
       { key: 'history',     icon: '◈', label: 'History' },
       { key: 'analyze',     icon: '🔍', label: 'Analyze' },
+      { key: 'external',    icon: '🔗', label: 'Linked' },
       { key: 'friends',     icon: '◎', label: 'Friends' },
       { key: 'leaderboard', icon: '🏆', label: 'Leaderboard' },
     ];
@@ -455,6 +459,7 @@ export default function App() {
                   : lobbyTab === 'play'         ? <>Welcome back, <span className="text-primary">{user?.display_name?.split(' ')[0]}</span>.</>
                   : lobbyTab === 'history'      ? 'Match History'
                   : lobbyTab === 'analyze'      ? 'Analyze a game'
+                  : lobbyTab === 'external'     ? 'Linked Accounts'
                   : lobbyTab === 'friends'      ? 'Friends'
                   : lobbyTab === 'leaderboard'  ? 'Leaderboard'
                   : null}
@@ -677,6 +682,25 @@ export default function App() {
                     Analyze →
                   </button>
                 </div>
+              </div>
+            )}
+
+            {/* ── Linked accounts tab ── */}
+            {!viewingGameId && !pgnReviewData && lobbyTab === 'external' && (
+              <div className="max-w-2xl mx-auto">
+                {selectedExtAccount ? (
+                  <ExternalGames
+                    account={selectedExtAccount}
+                    token={token}
+                    onViewGame={(data) => setPgnReviewData(data)}
+                    onBack={() => setSelectedExtAccount(null)}
+                  />
+                ) : (
+                  <ExternalAccounts
+                    token={token}
+                    onSelectAccount={setSelectedExtAccount}
+                  />
+                )}
               </div>
             )}
 
