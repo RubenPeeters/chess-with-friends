@@ -41,9 +41,12 @@ ps:
 # ── Database ──────────────────────────────────────────────────────────────────
 
 ## Apply any pending migrations. Idempotent — tracks applied files in the
-## `_migrations` table, so it's safe to run on every deploy.
+## `_migrations` table, so it's safe to run on every deploy. flock prevents
+## concurrent runs on the same host (e.g. a manual `make migrate` kicking off
+## while the deploy workflow is also running). The GitHub Actions
+## `concurrency: deploy` group serialises deploys themselves.
 migrate:
-	@./db/migrate.sh
+	@flock /tmp/chess-with-friends.migrate.lock ./db/migrate.sh
 
 # ── Frontend dev server ───────────────────────────────────────────────────────
 
