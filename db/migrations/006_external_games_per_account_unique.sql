@@ -6,12 +6,15 @@
 -- silently skip every game because they would conflict with rows owned by
 -- the first user.
 --
--- Idempotent: uses IF EXISTS / IF NOT EXISTS so it can be applied against
--- databases where 005 has already been applied OR against fresh databases
--- created after this migration lands.
+-- Idempotent: Postgres has no `ADD CONSTRAINT IF NOT EXISTS`, so we
+-- DROP both the old and the new constraint first (no-op if missing),
+-- then ADD the new one. Running this migration a second time is safe.
 
 ALTER TABLE external_games
     DROP CONSTRAINT IF EXISTS external_games_platform_game_unique;
+
+ALTER TABLE external_games
+    DROP CONSTRAINT IF EXISTS external_games_account_game_unique;
 
 ALTER TABLE external_games
     ADD CONSTRAINT external_games_account_game_unique

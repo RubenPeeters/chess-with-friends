@@ -46,8 +46,11 @@ function parseGame(pgn, platform, linkedUsername) {
   });
 
   const sanList = movesJson.map((m) => m.san);
-  const openingMoves = sanList.slice(0, MAX_OPENING_HALF_MOVES).join(' ');
-  const opening = identifyOpening(sanList);
+  const openingSlice = sanList.slice(0, MAX_OPENING_HALF_MOVES);
+  const openingMoves = openingSlice.join(' ');
+  // Match against the same slice stored in `opening_moves` so the ECO
+  // assignment is consistent with the data used for opening-tree queries.
+  const opening = identifyOpening(openingSlice);
 
   const whiteName = headers.White ?? 'White';
   const blackName = headers.Black ?? 'Black';
