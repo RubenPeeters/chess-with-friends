@@ -24,84 +24,88 @@ async function getOwnedAccount(accountId, userId) {
 
 /**
  * Parse a single PGN string into the shape we store in `external_games`.
- * Returns null if the PGN is unparseable.
+ * Returns null if the PGN is unparseable or malformed. The entire body
+ * is wrapped in a try/catch so one bad game can never abort a sync —
+ * any unexpected throw from chess.js (bad headers, weird moves, replay
+ * failures) falls through to `return null` and the caller counts it
+ * as a skipped game.
  */
 function parseGame(pgn, platform, linkedUsername) {
-  const chess = new Chess();
   try {
+    const chess = new Chess();
     chess.loadPgn(pgn);
+
+    const headers = chess.header();
+    const verbose = chess.history({ verbose: true });
+    if (verbose.length === 0) return null;
+
+    // Replay to capture FEN after each move
+    const replay = new Chess();
+    const movesJson = verbose.map((m) => {
+      replay.move({ from: m.from, to: m.to, promotion: m.promotion });
+      return { san: m.san, fen: replay.fen() };
+    });
+
+    const sanList = movesJson.map((m) => m.san);
+    const openingSlice = sanList.slice(0, MAX_OPENING_HALF_MOVES);
+    const openingMoves = openingSlice.join(' ');
+    // Match against the same slice stored in `opening_moves` so the ECO
+    // assignment is consistent with the data used for opening-tree queries.
+    const opening = identifyOpening(openingSlice);
+
+    const whiteName = headers.White ?? 'White';
+    const blackName = headers.Black ?? 'Black';
+    const lowerUser = linkedUsername.toLowerCase();
+    const playerColor =
+      whiteName.toLowerCase() === lowerUser ? 'white' :
+      blackName.toLowerCase() === lowerUser ? 'black' : 'white';
+
+    const resultMap = { '1-0': 'white', '0-1': 'black', '1/2-1/2': 'draw' };
+    const result = resultMap[headers.Result] ?? null;
+
+    // Derive a stable platform game ID
+    let platformGameId;
+    if (platform === 'lichess') {
+      // Lichess Site header: "https://lichess.org/XXXXX"
+      const siteMatch = (headers.Site ?? '').match(/lichess\.org\/(\w+)/);
+      platformGameId = siteMatch ? siteMatch[1] : `${whiteName}-${blackName}-${headers.Date}-${headers.Round}`;
+    } else {
+      // Chess.com Link header or fallback
+      const link = headers.Link ?? headers.Site ?? '';
+      platformGameId = link || `${whiteName}-${blackName}-${headers.Date}-${headers.Round}`;
+    }
+
+    // PGN dates are sometimes "????.??.??" (unknown), which produces Invalid
+    // Date. Fall back to null in that case — Postgres would reject an
+    // invalid timestamp and abort the whole sync since we no longer swallow
+    // insert errors.
+    const parseDate = (s) => {
+      const d = new Date(s);
+      return Number.isNaN(d.getTime()) ? null : d;
+    };
+    const playedAt = headers.UTCDate && headers.UTCTime
+      ? parseDate(`${headers.UTCDate.replace(/\./g, '-')}T${headers.UTCTime}Z`)
+      : headers.Date
+        ? parseDate(headers.Date.replace(/\./g, '-'))
+        : null;
+
+    return {
+      platformGameId,
+      whiteName,
+      blackName,
+      playerColor,
+      result,
+      timeControl: headers.TimeControl ?? null,
+      playedAt,
+      pgn,
+      movesJson,
+      openingMoves,
+      eco: opening?.eco ?? null,
+      openingName: opening?.name ?? null,
+    };
   } catch {
     return null;
   }
-
-  const headers = chess.header();
-  const verbose = chess.history({ verbose: true });
-  if (verbose.length === 0) return null;
-
-  // Replay to capture FEN after each move
-  const replay = new Chess();
-  const movesJson = verbose.map((m) => {
-    replay.move({ from: m.from, to: m.to, promotion: m.promotion });
-    return { san: m.san, fen: replay.fen() };
-  });
-
-  const sanList = movesJson.map((m) => m.san);
-  const openingSlice = sanList.slice(0, MAX_OPENING_HALF_MOVES);
-  const openingMoves = openingSlice.join(' ');
-  // Match against the same slice stored in `opening_moves` so the ECO
-  // assignment is consistent with the data used for opening-tree queries.
-  const opening = identifyOpening(openingSlice);
-
-  const whiteName = headers.White ?? 'White';
-  const blackName = headers.Black ?? 'Black';
-  const lowerUser = linkedUsername.toLowerCase();
-  const playerColor =
-    whiteName.toLowerCase() === lowerUser ? 'white' :
-    blackName.toLowerCase() === lowerUser ? 'black' : 'white';
-
-  const resultMap = { '1-0': 'white', '0-1': 'black', '1/2-1/2': 'draw' };
-  const result = resultMap[headers.Result] ?? null;
-
-  // Derive a stable platform game ID
-  let platformGameId;
-  if (platform === 'lichess') {
-    // Lichess Site header: "https://lichess.org/XXXXX"
-    const siteMatch = (headers.Site ?? '').match(/lichess\.org\/(\w+)/);
-    platformGameId = siteMatch ? siteMatch[1] : `${whiteName}-${blackName}-${headers.Date}-${headers.Round}`;
-  } else {
-    // Chess.com Link header or fallback
-    const link = headers.Link ?? headers.Site ?? '';
-    platformGameId = link || `${whiteName}-${blackName}-${headers.Date}-${headers.Round}`;
-  }
-
-  // PGN dates are sometimes "????.??.??" (unknown), which produces Invalid
-  // Date. Fall back to null in that case — Postgres would reject an
-  // invalid timestamp and abort the whole sync since we no longer swallow
-  // insert errors.
-  const parseDate = (s) => {
-    const d = new Date(s);
-    return Number.isNaN(d.getTime()) ? null : d;
-  };
-  const playedAt = headers.UTCDate && headers.UTCTime
-    ? parseDate(`${headers.UTCDate.replace(/\./g, '-')}T${headers.UTCTime}Z`)
-    : headers.Date
-      ? parseDate(headers.Date.replace(/\./g, '-'))
-      : null;
-
-  return {
-    platformGameId,
-    whiteName,
-    blackName,
-    playerColor,
-    result,
-    timeControl: headers.TimeControl ?? null,
-    playedAt,
-    pgn,
-    movesJson,
-    openingMoves,
-    eco: opening?.eco ?? null,
-    openingName: opening?.name ?? null,
-  };
 }
 
 // ── Fetchers ─────────────────────────────────────────────────────────────────
@@ -140,7 +144,7 @@ async function fetchChesscomGames(username, months = 3) {
   if (!archiveRes.ok) {
     throw new Error(`Chess.com API returned ${archiveRes.status}`);
   }
-  const { archives } = await archiveRes.json();
+  const { archives = [] } = await archiveRes.json();
   // Fetch the most recent N months
   const recentArchives = archives.slice(-months);
 
@@ -148,7 +152,7 @@ async function fetchChesscomGames(username, months = 3) {
   for (const archiveUrl of recentArchives) {
     const monthRes = await fetchWithTimeout(archiveUrl);
     if (!monthRes.ok) continue;
-    const { games } = await monthRes.json();
+    const { games = [] } = await monthRes.json();
     for (const game of games) {
       if (game.pgn) pgns.push(game.pgn);
     }
