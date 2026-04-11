@@ -74,10 +74,18 @@ function parseGame(pgn, platform, linkedUsername) {
     platformGameId = link || `${whiteName}-${blackName}-${headers.Date}-${headers.Round}`;
   }
 
+  // PGN dates are sometimes "????.??.??" (unknown), which produces Invalid
+  // Date. Fall back to null in that case — Postgres would reject an
+  // invalid timestamp and abort the whole sync since we no longer swallow
+  // insert errors.
+  const parseDate = (s) => {
+    const d = new Date(s);
+    return Number.isNaN(d.getTime()) ? null : d;
+  };
   const playedAt = headers.UTCDate && headers.UTCTime
-    ? new Date(`${headers.UTCDate.replace(/\./g, '-')}T${headers.UTCTime}Z`)
+    ? parseDate(`${headers.UTCDate.replace(/\./g, '-')}T${headers.UTCTime}Z`)
     : headers.Date
-      ? new Date(headers.Date.replace(/\./g, '-'))
+      ? parseDate(headers.Date.replace(/\./g, '-'))
       : null;
 
   return {
