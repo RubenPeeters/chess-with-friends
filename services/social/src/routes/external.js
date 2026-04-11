@@ -441,34 +441,49 @@ router.get('/accounts/:id/openings', async (req, res) => {
 
     const { rows } = await pool.query(queryText, queryParams);
 
-    // Compute win rates and totals
-    let totalGames = 0;
-    let totalWins = 0;
-    let totalDraws = 0;
-    let totalLosses = 0;
-    const moves = rows.map((r) => {
-      totalGames += r.count;
-      totalWins += r.wins;
-      totalDraws += r.draws;
-      totalLosses += r.losses;
-      return {
-        move: r.next_move,
-        count: r.count,
-        wins: r.wins,
-        draws: r.draws,
-        losses: r.losses,
-        winRate: r.count > 0 ? Math.round((r.wins / r.count) * 1000) / 1000 : 0,
-      };
-    });
+    // Aggregate totals — run a separate query with the SAME WHERE predicate
+    // as the grouped query but without GROUP BY / HAVING, so leaf-node games
+    // (opening_moves = prefix exactly, no next token) contribute to
+    // totalGames/wins/draws/losses even though they're filtered out of the
+    // per-move breakdown.
+    const totalQuery = prefix
+      ? `SELECT
+           COUNT(*)::int AS total,
+           COUNT(*) FILTER (WHERE result = player_color)::int AS wins,
+           COUNT(*) FILTER (WHERE result = 'draw')::int AS draws,
+           COUNT(*) FILTER (WHERE result IS NOT NULL AND result != 'draw' AND result != player_color)::int AS losses
+         FROM external_games
+         WHERE linked_account_id = $1
+           AND (opening_moves = $2 OR opening_moves LIKE $3 ESCAPE '\')`
+      : `SELECT
+           COUNT(*)::int AS total,
+           COUNT(*) FILTER (WHERE result = player_color)::int AS wins,
+           COUNT(*) FILTER (WHERE result = 'draw')::int AS draws,
+           COUNT(*) FILTER (WHERE result IS NOT NULL AND result != 'draw' AND result != player_color)::int AS losses
+         FROM external_games
+         WHERE linked_account_id = $1
+           AND opening_moves IS NOT NULL
+           AND opening_moves != ''`;
+    const totalParams = prefix ? [account.id, prefix, escapedPrefix + ' %'] : [account.id];
+    const { rows: [totals] } = await pool.query(totalQuery, totalParams);
+
+    const moves = rows.map((r) => ({
+      move: r.next_move,
+      count: r.count,
+      wins: r.wins,
+      draws: r.draws,
+      losses: r.losses,
+      winRate: r.count > 0 ? Math.round((r.wins / r.count) * 1000) / 1000 : 0,
+    }));
 
     return res.json({
       prefix: prefix || null,
-      totalGames,
+      totalGames: totals.total,
       stats: {
-        wins: totalWins,
-        draws: totalDraws,
-        losses: totalLosses,
-        winRate: totalGames > 0 ? Math.round((totalWins / totalGames) * 1000) / 1000 : 0,
+        wins: totals.wins,
+        draws: totals.draws,
+        losses: totals.losses,
+        winRate: totals.total > 0 ? Math.round((totals.wins / totals.total) * 1000) / 1000 : 0,
       },
       moves,
     });
