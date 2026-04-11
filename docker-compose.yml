@@ -124,6 +124,23 @@ services:
       timeout: 5s
       retries: 5
 
+  db-backup:
+    build: ./services/db-backup
+    env_file: .env
+    environment:
+      PGHOST: postgres
+      PGUSER: chess
+      PGDATABASE: chess
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      # Daily at 03:00 UTC. Override in .env with BACKUP_SCHEDULE if needed.
+      BACKUP_SCHEDULE: ${BACKUP_SCHEDULE:-0 3 * * *}
+      BACKUP_KEEP_DAYS: ${BACKUP_KEEP_DAYS:-14}
+      BACKUP_RUN_ON_STARTUP: ${BACKUP_RUN_ON_STARTUP:-0}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
 volumes:
   postgres_data:
   redis_data:

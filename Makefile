@@ -47,6 +47,14 @@ migrate:
 		docker compose exec -T postgres psql -U chess -d chess -f /docker-entrypoint-initdb.d/$$(basename $$f); \
 	done
 
+## Run a database backup immediately (doesn't wait for the next cron tick)
+backup-now:
+	docker compose exec db-backup /app/backup.sh
+
+## List recent backups in the S3 bucket
+backup-list:
+	docker compose exec db-backup sh -c 'AWS_ACCESS_KEY_ID="$$S3_ACCESS_KEY" AWS_SECRET_ACCESS_KEY="$$S3_SECRET_KEY" AWS_DEFAULT_REGION="$$S3_REGION" aws s3 ls $${S3_ENDPOINT:+--endpoint-url=$$S3_ENDPOINT} "s3://$$S3_BUCKET/backups/" | sort'
+
 # ── Frontend dev server ───────────────────────────────────────────────────────
 
 ## Start the Vite dev server
