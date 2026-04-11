@@ -321,7 +321,7 @@ router.get('/accounts/:id/games', async (req, res) => {
               time_control, played_at, eco, opening_name
        FROM external_games
        WHERE linked_account_id = $1
-       ORDER BY played_at DESC NULLS LAST
+       ORDER BY played_at DESC NULLS LAST, id DESC
        LIMIT $2 OFFSET $3`,
       [account.id, limit, offset]
     );
