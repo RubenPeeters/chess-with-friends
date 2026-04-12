@@ -20,9 +20,11 @@ mkdir -p /var/spool/cron/crontabs
     echo "${SCHEDULE} . /etc/profile.d/env.sh; /app/backup.sh >> ${LOG_FILE} 2>&1"
 } > /tmp/crontab
 
-# Move env exports to a profile script the cron job can source
+# Move env exports to a profile script the cron job can source.
+# `|| true` prevents set -e from aborting if no matching lines exist
+# (e.g. misconfigured compose with no PG/S3/BACKUP vars).
 mkdir -p /etc/profile.d
-grep '^export ' /tmp/crontab > /etc/profile.d/env.sh
+grep '^export ' /tmp/crontab > /etc/profile.d/env.sh || true
 grep -v '^export ' /tmp/crontab > /var/spool/cron/crontabs/root
 
 touch "$LOG_FILE"

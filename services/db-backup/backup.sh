@@ -54,7 +54,7 @@ rm -f "$DUMP_FILE"
 # cross-filesystem-safe). We reconstruct the real ISO timestamp and compare to
 # a cutoff epoch.
 CUTOFF_EPOCH=$(date -u -d "${KEEP_DAYS} days ago" +%s)
-echo "[backup] pruning backups older than ${KEEP_DAYS} days (< $(date -u -d @${CUTOFF_EPOCH} +%FT%TZ))"
+echo "[backup] pruning backups older than ${KEEP_DAYS} days (< $(date -u -d "@${CUTOFF_EPOCH}" +%FT%TZ))"
 
 aws s3 ls "${ENDPOINT_ARG[@]}" "s3://${S3_BUCKET}/backups/" | while read -r LINE; do
     KEY=$(echo "$LINE" | awk '{print $4}')

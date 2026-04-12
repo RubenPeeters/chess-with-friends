@@ -51,7 +51,7 @@ docker compose exec -T db-backup sh -c '
   AWS_ACCESS_KEY_ID="$S3_ACCESS_KEY" \
   AWS_SECRET_ACCESS_KEY="$S3_SECRET_KEY" \
   AWS_DEFAULT_REGION="$S3_REGION" \
-  aws s3 cp ${S3_ENDPOINT:+--endpoint-url=$S3_ENDPOINT} \
+  aws s3 cp ${S3_ENDPOINT:+"--endpoint-url=$S3_ENDPOINT"} \
     s3://$S3_BUCKET/backups/chess-2026-04-11T03-00-00Z.sql.gz -
 ' > /tmp/chess-restore.sql.gz
 ```
