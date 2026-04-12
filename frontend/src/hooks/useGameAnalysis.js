@@ -38,9 +38,9 @@ function evalToCp(ev) {
 }
 
 function classify(cpLoss) {
-  if (cpLoss >= BLUNDER_CP) return 'blunder';
-  if (cpLoss >= MISTAKE_CP) return 'mistake';
-  if (cpLoss >= INACCURACY_CP) return 'inaccuracy';
+  if (cpLoss > BLUNDER_CP) return 'blunder';
+  if (cpLoss > MISTAKE_CP) return 'mistake';
+  if (cpLoss > INACCURACY_CP) return 'inaccuracy';
   return 'good';
 }
 
@@ -75,6 +75,7 @@ export function useGameAnalysis(moves) {
     // We need eval[i] and eval[i+1] to classify move i.
     const fens = [START_FEN, ...moves.map((m) => m.fen)];
     const evals = new Array(fens.length).fill(null);
+    const fenCache = new Map(); // FEN → eval (skip repeated positions)
     let posIdx = 0;       // which FEN we're currently analysing
     let bestEval = null;  // highest-depth eval seen for the current position
 
@@ -84,8 +85,18 @@ export function useGameAnalysis(moves) {
         return;
       }
       posIdx = idx;
-      bestEval = null;
       const fen = fens[idx];
+
+      // Deduplicate: if this FEN was already evaluated (e.g. threefold
+      // repetition), reuse the cached result and skip the engine call.
+      if (fenCache.has(fen)) {
+        evals[idx] = fenCache.get(fen);
+        setProgress({ done: Math.min(idx, moves.length), total: moves.length });
+        analyzePosition(idx + 1);
+        return;
+      }
+
+      bestEval = null;
       const turn = fen.split(' ')[1] ?? 'w';
       worker._turn = turn;
       worker.postMessage('stop');
@@ -165,6 +176,7 @@ export function useGameAnalysis(moves) {
       // `bestmove` signals the search is done for this position
       if (line.startsWith('bestmove')) {
         evals[posIdx] = bestEval;
+        fenCache.set(fens[posIdx], bestEval);
         setProgress({ done: Math.min(posIdx, moves.length), total: moves.length });
         analyzePosition(posIdx + 1);
       }

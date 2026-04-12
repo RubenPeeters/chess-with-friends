@@ -219,6 +219,11 @@ export function GameReview({ gameId, data: providedData, token, onClose, inline 
               const moveNum = Math.floor(km.moveIdx / 2) + 1;
               const isWhite = km.moveIdx % 2 === 0;
               const label = isWhite ? `${moveNum}. ${data.moves[km.moveIdx].san}` : `${moveNum}... ${data.moves[km.moveIdx].san}`;
+              const evalStr = km.eval
+                ? km.eval.mate !== null
+                  ? `M${Math.abs(km.eval.mate)}`
+                  : (km.eval.cp >= 0 ? '+' : '') + (km.eval.cp / 100).toFixed(1)
+                : '';
               return (
                 <button
                   key={km.moveIdx}
@@ -227,6 +232,7 @@ export function GameReview({ gameId, data: providedData, token, onClose, inline 
                 >
                   <ClassificationBadge cls={km.classification} />
                   <span className="font-mono text-[0.68rem] text-on-surface">{label}</span>
+                  <span className="font-mono text-[0.6rem] text-muted ml-auto">{evalStr}</span>
                 </button>
               );
             })}
@@ -339,15 +345,17 @@ function MoveChip({ san, active, onClick, classification }) {
       onClick={onClick}
       className={[
         'font-mono text-[0.78rem] px-1.5 py-0.5 rounded text-left border-0 cursor-pointer transition-colors w-full truncate flex items-center gap-1',
-        active
-          ? 'bg-primary text-on-primary font-semibold'
-          : hasBadge
-            ? `${CLS_BG[classification]} text-on-surface hover:opacity-80`
-            : 'bg-transparent text-on-surface hover:bg-surface-high',
+        active && hasBadge
+          ? `${CLS_BG[classification]} ring-2 ring-primary font-semibold`
+          : active
+            ? 'bg-primary text-on-primary font-semibold'
+            : hasBadge
+              ? `${CLS_BG[classification]} text-on-surface hover:opacity-80`
+              : 'bg-transparent text-on-surface hover:bg-surface-high',
       ].join(' ')}
     >
       {san}
-      {!active && <ClassificationBadge cls={classification} />}
+      <ClassificationBadge cls={classification} />
     </button>
   );
 }
