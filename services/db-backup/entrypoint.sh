@@ -44,5 +44,6 @@ tail -F "$LOG_FILE" &
 TAIL_PID=$!
 
 # Forward signals to crond for clean shutdown
-trap "kill -TERM $CROND_PID $TAIL_PID 2>/dev/null; exit 0" TERM INT
+cleanup() { kill -TERM "$CROND_PID" "$TAIL_PID" 2>/dev/null; exit 0; }
+trap cleanup TERM INT
 wait $CROND_PID

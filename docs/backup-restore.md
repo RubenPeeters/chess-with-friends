@@ -112,8 +112,9 @@ and re-run the restore.
 
 **Backups not uploading.** Check `make logs svc=db-backup`. Most likely
 causes: wrong S3 credentials, wrong endpoint URL for B2, or postgres not
-reachable (should never happen because the service has
-`depends_on: { postgres: { condition: service_healthy } }`).
+reachable. Note that `depends_on: service_healthy` only gates initial
+container startup — if postgres becomes unavailable later, the backup
+script will fail until it recovers.
 
 **Postgres client / server version mismatch.** The `db-backup` Dockerfile
 pins `postgresql16-client` to match `postgres:16-alpine` from the main
