@@ -25,6 +25,7 @@ mkdir -p /var/spool/cron/crontabs
 # (e.g. misconfigured compose with no PG/S3/BACKUP vars).
 mkdir -p /etc/profile.d
 grep '^export ' /tmp/crontab > /etc/profile.d/env.sh || true
+chmod 600 /etc/profile.d/env.sh  # contains S3 credentials
 grep -v '^export ' /tmp/crontab > /var/spool/cron/crontabs/root
 
 touch "$LOG_FILE"

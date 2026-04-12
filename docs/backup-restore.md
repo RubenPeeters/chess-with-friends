@@ -26,6 +26,11 @@ All controlled via `.env` (see `.env.example`):
 - **See recent backups**: `make backup-list`
 - **Run one now**: `make backup-now`
 - **Tail logs**: `make logs svc=db-backup`
+- **Monthly restore drill** — once a month, download the latest backup
+  to a staging environment, restore it, and verify row counts / API
+  sanity. This catches silent backup corruption before it matters.
+  A calendar reminder is the simplest trigger until we add Sentry
+  cron check-ins (#27).
 
 ## Restoring from a backup
 
