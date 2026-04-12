@@ -47,6 +47,14 @@ migrate:
 		docker compose exec -T postgres psql -U chess -d chess -f /docker-entrypoint-initdb.d/$$(basename $$f); \
 	done
 
+# ── Tests ────────────────────────────────────────────────────────────────────
+
+## Run all test suites (frontend vitest + backend node:test)
+test:
+	cd frontend && npm test
+	cd services/game && npm test
+	cd services/social && npm test
+
 # ── Frontend dev server ───────────────────────────────────────────────────────
 
 ## Start the Vite dev server
