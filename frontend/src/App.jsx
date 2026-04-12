@@ -45,15 +45,18 @@ function tcCategory(tc) {
 
 // ── App ───────────────────────────────────────────────────────────────────────
 
-function toggleTheme() {
-  const isDark = document.documentElement.classList.toggle('dark');
-  localStorage.setItem('theme', isDark ? 'dark' : 'light');
-}
-
 export default function App() {
   const [token, setToken]               = useState(() => localStorage.getItem('ff_token'));
   const [gameId, setGameId]             = useState(null);
   const [playerColour, setPlayerColour] = useState('white');
+
+  const [isDark, setIsDark] = useState(() => document.documentElement.classList.contains('dark'));
+
+  function toggleTheme() {
+    const dark = document.documentElement.classList.toggle('dark');
+    localStorage.setItem('theme', dark ? 'dark' : 'light');
+    setIsDark(dark);
+  }
 
   const [authMode, setAuthMode]         = useState('login');
   const [authForm, setAuthForm]         = useState({ email: '', password: '', displayName: '' });
@@ -475,8 +478,9 @@ export default function App() {
               <button
                 onClick={toggleTheme}
                 className="w-10 h-10 flex items-center justify-center rounded-md bg-surface-high text-on-surface border-0 cursor-pointer hover:bg-surface-highest transition-colors text-sm"
-                aria-label="Toggle dark mode"
-                title="Toggle dark mode"
+                aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+                aria-pressed={isDark}
+                title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
               >
                 {/* Sun in light mode, moon in dark — CSS-driven so no React state needed */}
                 <span className="dark:hidden">🌙</span>
