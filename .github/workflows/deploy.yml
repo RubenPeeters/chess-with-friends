@@ -33,13 +33,13 @@ jobs:
             echo "→ Rebuilding images"
             docker compose build --no-cache
 
-            echo "→ Restarting services"
+            echo "→ Stopping services"
             docker compose down
-            docker compose up -d
+
+            echo "→ Starting postgres + redis first (for migrations)"
+            docker compose up -d postgres redis
 
             echo "→ Waiting for postgres to be ready"
-            # Postgres is depended on by the other services, but we need it
-            # reachable before running migrate. Wait for pg_isready up to ~30s.
             pg_ready=0
             for i in 1 2 3 4 5 6 7 8 9 10; do
               if docker compose exec -T postgres pg_isready -U chess -d chess >/dev/null 2>&1; then
@@ -56,6 +56,9 @@ jobs:
 
             echo "→ Applying database migrations"
             make migrate
+
+            echo "→ Starting all services"
+            docker compose up -d
 
             echo "→ Waiting for health checks"
             sleep 10
