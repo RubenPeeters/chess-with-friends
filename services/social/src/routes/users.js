@@ -95,12 +95,13 @@ router.get('/:userId/rating-history', async (req, res) => {
         )
       : await pool.query(
           `SELECT * FROM (
-             SELECT rating, rd, game_type, recorded_at
+             SELECT rating, rd, game_type, recorded_at,
+                    ROW_NUMBER() OVER (PARTITION BY game_type ORDER BY recorded_at DESC) AS rn
              FROM rating_history
              WHERE user_id = $1
-             ORDER BY recorded_at DESC
-             LIMIT $2
-           ) sub ORDER BY recorded_at ASC`,
+           ) sub
+           WHERE rn <= $2
+           ORDER BY recorded_at ASC`,
           [req.params.userId, limit]
         );
 

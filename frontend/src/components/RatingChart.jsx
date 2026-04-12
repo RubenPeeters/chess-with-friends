@@ -135,18 +135,21 @@ export function RatingChart({ userId, token }) {
             strokeLinecap="round"
           />
 
-          {/* Invisible hover targets (wider hit area than the line) */}
-          {points.map((p, i) => (
+          {/* Invisible hover targets — spacing matches actual point distance */}
+          {points.map((p, i) => {
+            const spacing = points.length > 1 ? PLOT_W / (points.length - 1) : PLOT_W;
+            return (
             <rect
               key={i}
-              x={scaleX(i) - PLOT_W / points.length / 2}
+              x={scaleX(i) - spacing / 2}
               y={PAD.top}
-              width={PLOT_W / points.length}
+              width={spacing}
               height={PLOT_H}
               fill="transparent"
               onMouseEnter={() => setHoverIdx(i)}
             />
-          ))}
+            );
+          })}
 
           {/* Hover dot + label */}
           {hoverPoint && (
