@@ -2,7 +2,7 @@
 # Usage: make <target>
 
 .PHONY: up down restart build rebuild logs ps \
-        migrate dev deploy caddy-reload
+        migrate test dev deploy caddy-reload
 
 # ── Local stack ───────────────────────────────────────────────────────────────
 

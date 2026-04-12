@@ -143,8 +143,10 @@ describe('clockManager', () => {
     it('removes all clock keys', async () => {
       await initClocks(redis, GAME_ID, INITIAL_MS);
       await deleteClocks(redis, GAME_ID);
-      const raw = await redis.get(`game:${GAME_ID}:clock:white`);
-      assert.equal(raw, null);
+      assert.equal(await redis.get(`game:${GAME_ID}:clock:white`), null);
+      assert.equal(await redis.get(`game:${GAME_ID}:clock:black`), null);
+      assert.equal(await redis.get(`game:${GAME_ID}:clock:active`), null);
+      assert.equal(await redis.get(`game:${GAME_ID}:clock:ts`), null);
     });
   });
 });
