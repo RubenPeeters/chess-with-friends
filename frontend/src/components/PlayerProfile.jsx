@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { apiFetch } from '../api.js';
+import { RatingChart } from './RatingChart.jsx';
 
 const TYPES   = ['bullet', 'blitz', 'rapid', 'classical'];
 const ICONS   = { bullet: '⚡', blitz: '🔥', rapid: '⏱', classical: '♞' };
@@ -99,6 +100,14 @@ export function PlayerProfile({ userId, token, onClose, onViewGame }) {
                     );
                   })}
                 </div>
+              </div>
+
+              {/* Rating history chart */}
+              <div>
+                <h3 className="font-mono text-[0.68rem] font-semibold text-muted uppercase tracking-[0.08em] mb-3">
+                  Rating history
+                </h3>
+                <RatingChart userId={userId} token={token} />
               </div>
 
               {/* Recent games */}

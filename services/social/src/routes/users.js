@@ -5,7 +5,7 @@ const router = Router();
 
 // ── GET /users/leaderboard?type=rapid — top 20 per game type ─────────────────
 router.get('/leaderboard', async (req, res) => {
-  const type = ['bullet', 'blitz', 'rapid', 'classical'].includes(req.query.type)
+  const type = GAME_TYPES.includes(req.query.type)
     ? req.query.type
     : 'rapid';
   try {
@@ -65,6 +65,63 @@ router.get('/:userId', async (req, res) => {
     });
   } catch (err) {
     console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+const GAME_TYPES = ['bullet', 'blitz', 'rapid', 'classical'];
+
+// ── GET /users/:userId/rating-history — rating history for charts ────────────
+router.get('/:userId/rating-history', async (req, res) => {
+  const type = GAME_TYPES.includes(req.query.game_type)
+    ? req.query.game_type
+    : null;
+  const parsedLimit = parseInt(req.query.limit, 10);
+  const limit = Math.min(200, Math.max(1, Number.isFinite(parsedLimit) ? parsedLimit : 100));
+
+  try {
+    // Fetch the most recent `limit` entries per type in chronological order
+    // (oldest → newest) for charting. Single-type: DESC subquery + outer ASC
+    // re-sort. All-types: ROW_NUMBER() PARTITION BY game_type so each type
+    // gets its own independent limit of the most recent N rows.
+    const { rows } = type
+      ? await pool.query(
+          `SELECT * FROM (
+             SELECT rating, rd, game_type, recorded_at
+             FROM rating_history
+             WHERE user_id = $1 AND game_type = $2
+             ORDER BY recorded_at DESC
+             LIMIT $3
+           ) sub ORDER BY recorded_at ASC`,
+          [req.params.userId, type, limit]
+        )
+      : await pool.query(
+          `SELECT * FROM (
+             SELECT rating, rd, game_type, recorded_at,
+                    ROW_NUMBER() OVER (PARTITION BY game_type ORDER BY recorded_at DESC) AS rn
+             FROM rating_history
+             WHERE user_id = $1
+           ) sub
+           WHERE rn <= $2
+           ORDER BY recorded_at ASC`,
+          [req.params.userId, limit]
+        );
+
+    // Group by game_type, dropping any stray values that aren't in the
+    // supported set (the DB column is plain TEXT with no CHECK constraint).
+    const byType = {};
+    for (const row of rows) {
+      if (!GAME_TYPES.includes(row.game_type)) continue;
+      (byType[row.game_type] ??= []).push({
+        rating: Number(row.rating),
+        rd: Number(row.rd),
+        recorded_at: row.recorded_at,
+      });
+    }
+
+    res.json(byType);
+  } catch (err) {
+    console.error('[users] rating-history error:', err);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
