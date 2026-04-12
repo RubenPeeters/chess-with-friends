@@ -397,10 +397,13 @@ export default function App() {
         )}
 
         {/* ── Sidebar — hidden on mobile, fixed drawer on lg+ ── */}
-        <aside className={[
-          'w-64 fixed left-0 top-0 h-screen flex flex-col bg-[#f8f9fb] border-r border-black/[0.06] z-40 transition-transform duration-200',
-          sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0',
-        ].join(' ')}>
+        <aside
+          className={[
+            'w-64 fixed left-0 top-0 h-screen flex flex-col bg-[#f8f9fb] border-r border-black/[0.06] z-40 transition-transform duration-200',
+            sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0',
+          ].join(' ')}
+          aria-hidden={!sidebarOpen ? 'true' : undefined}
+        >
           {/* Brand + user */}
           <div className="px-5 pt-7 pb-5">
             <div className="flex items-center gap-2 mb-7">
@@ -460,7 +463,7 @@ export default function App() {
               {/* Hamburger — mobile only */}
               <button
                 onClick={() => setSidebarOpen(true)}
-                className="lg:hidden w-10 h-10 flex items-center justify-center rounded-md bg-surface-high text-on-surface border-0 cursor-pointer hover:bg-surface-highest transition-colors"
+                className="lg:hidden w-11 h-11 flex items-center justify-center rounded-md bg-surface-high text-on-surface border-0 cursor-pointer hover:bg-surface-highest transition-colors"
                 aria-label="Open menu"
               >
                 ☰
