@@ -66,6 +66,7 @@ export default function App() {
   const [joiningGame, setJoiningGame]       = useState(false);
   const [copied, setCopied]                 = useState(false);
   const [drawOfferDismissed, setDrawOfferDismissed] = useState(null);
+  const [sidebarOpen, setSidebarOpen]               = useState(false);
   const [viewingGameId, setViewingGameId]           = useState(null);
   const [viewingPlayerId, setViewingPlayerId]       = useState(null);
   const [pgnInput, setPgnInput]                     = useState('');
@@ -387,8 +388,19 @@ export default function App() {
     return (
       <div className="min-h-screen bg-[#f1f2f4] flex">
 
-        {/* ── Sidebar ── */}
-        <aside className="w-64 fixed left-0 top-0 h-screen flex flex-col bg-[#f8f9fb] border-r border-black/[0.06] z-40">
+        {/* ── Mobile sidebar overlay ── */}
+        {sidebarOpen && (
+          <div
+            className="fixed inset-0 bg-black/30 z-30 lg:hidden"
+            onClick={() => setSidebarOpen(false)}
+          />
+        )}
+
+        {/* ── Sidebar — hidden on mobile, fixed drawer on lg+ ── */}
+        <aside className={[
+          'w-64 fixed left-0 top-0 h-screen flex flex-col bg-[#f8f9fb] border-r border-black/[0.06] z-40 transition-transform duration-200',
+          sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0',
+        ].join(' ')}>
           {/* Brand + user */}
           <div className="px-5 pt-7 pb-5">
             <div className="flex items-center gap-2 mb-7">
@@ -413,7 +425,7 @@ export default function App() {
             {NAV_ITEMS.map(({ key, icon, label }) => (
               <button
                 key={key}
-                onClick={() => setLobbyTab(key)}
+                onClick={() => { setLobbyTab(key); setSidebarOpen(false); }}
                 className={[
                   'flex items-center gap-3 py-3 px-3 rounded-md text-left w-full transition-all duration-150 border-0 cursor-pointer',
                   lobbyTab === key
@@ -440,11 +452,19 @@ export default function App() {
         </aside>
 
         {/* ── Main area ── */}
-        <div className="ml-64 flex-1 flex flex-col min-h-screen">
+        <div className="lg:ml-64 flex-1 flex flex-col min-h-screen">
 
           {/* Top header */}
-          <header className="sticky top-0 z-30 bg-[#f1f2f4]/80 backdrop-blur-xl border-b border-black/[0.06] px-10 py-4 flex items-center justify-between">
+          <header className="sticky top-0 z-20 bg-[#f1f2f4]/80 backdrop-blur-xl border-b border-black/[0.06] px-4 lg:px-10 py-4 flex items-center justify-between">
             <div className="flex items-center gap-3">
+              {/* Hamburger — mobile only */}
+              <button
+                onClick={() => setSidebarOpen(true)}
+                className="lg:hidden w-10 h-10 flex items-center justify-center rounded-md bg-surface-high text-on-surface border-0 cursor-pointer hover:bg-surface-highest transition-colors"
+                aria-label="Open menu"
+              >
+                ☰
+              </button>
               {(viewingGameId || pgnReviewData) && (
                 <button
                   onClick={handleCloseReview}
@@ -477,7 +497,7 @@ export default function App() {
           </header>
 
           {/* Content */}
-          <main className="flex-1 px-10 py-8 overflow-y-auto">
+          <main className="flex-1 px-4 py-6 lg:px-10 lg:py-8 overflow-y-auto">
 
             {/* ── Game analysis page (existing /history/:id flow) ── */}
             {viewingGameId && (
@@ -547,7 +567,7 @@ export default function App() {
                   ) : (
                     <>
                       {/* Time control cards */}
-                      <div className="grid grid-cols-4 gap-3 mb-5">
+                      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
                         {TC_CARDS.map(({ key, icon, label, tc, sub }) => {
                           const active = tcCategory(timeControl) === key;
                           return (

@@ -220,7 +220,7 @@ function NavBtn({ children, onClick, disabled, title }) {
       onClick={onClick}
       disabled={disabled}
       title={title}
-      className="w-9 h-9 flex items-center justify-center rounded-md bg-surface-high text-on-surface border-0 cursor-pointer hover:bg-surface-highest transition-colors disabled:opacity-30 disabled:cursor-not-allowed text-sm font-bold"
+      className="w-11 h-11 flex items-center justify-center rounded-md bg-surface-high text-on-surface border-0 cursor-pointer hover:bg-surface-highest transition-colors disabled:opacity-30 disabled:cursor-not-allowed text-sm font-bold"
     >
       {children}
     </button>
