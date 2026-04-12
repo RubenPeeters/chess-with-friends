@@ -5,7 +5,7 @@ const router = Router();
 
 // ── GET /users/leaderboard?type=rapid — top 20 per game type ─────────────────
 router.get('/leaderboard', async (req, res) => {
-  const type = ['bullet', 'blitz', 'rapid', 'classical'].includes(req.query.type)
+  const type = GAME_TYPES.includes(req.query.type)
     ? req.query.type
     : 'rapid';
   try {
@@ -121,7 +121,7 @@ router.get('/:userId/rating-history', async (req, res) => {
 
     res.json(byType);
   } catch (err) {
-    console.error('[users] rating-history error:', err.message);
+    console.error('[users] rating-history error:', err);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
