@@ -78,10 +78,10 @@ router.get('/:userId/rating-history', async (req, res) => {
   const limit = Math.min(200, Math.max(1, Number.isFinite(parsedLimit) ? parsedLimit : 100));
 
   try {
-    // Fetch the most recent `limit` entries per type, then reverse so the
-    // frontend receives them in chronological order (oldest → newest) for
-    // charting. The subquery + reverse avoids a full ASC sort that would
-    // return the *oldest* entries when the user has more than `limit` games.
+    // Fetch the most recent `limit` entries per type in chronological order
+    // (oldest → newest) for charting. Single-type: DESC subquery + outer ASC
+    // re-sort. All-types: ROW_NUMBER() PARTITION BY game_type so each type
+    // gets its own independent limit of the most recent N rows.
     const { rows } = type
       ? await pool.query(
           `SELECT * FROM (

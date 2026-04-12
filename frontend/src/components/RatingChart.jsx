@@ -87,10 +87,12 @@ export function RatingChart({ userId, token }) {
   return (
     <div className="flex flex-col gap-3">
       {/* Type tabs */}
-      <div className="flex items-center gap-1">
+      <div className="flex items-center gap-1" role="tablist" aria-label="Game type">
         {GAME_TYPES.filter((t) => data[t]?.length > 0).map((t) => (
           <button
             key={t}
+            role="tab"
+            aria-selected={activeType === t}
             onClick={() => { setActiveType(t); setHoverIdx(null); }}
             className={[
               'font-body text-xs font-semibold px-3 py-1.5 rounded-md border-0 cursor-pointer transition-all capitalize',
