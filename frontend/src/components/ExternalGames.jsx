@@ -74,7 +74,7 @@ export function ExternalGames({ account, token, onViewGame, onBack }) {
               onClick={() => setView(v)}
               className={[
                 'font-body text-xs font-semibold px-3 py-1.5 rounded-sm border-0 cursor-pointer transition-all capitalize',
-                view === v ? 'bg-white text-on-surface shadow-sm' : 'bg-transparent text-muted hover:text-on-surface',
+                view === v ? 'bg-surface-lowest text-on-surface shadow-sm' : 'bg-transparent text-muted hover:text-on-surface',
               ].join(' ')}
             >
               {v}
@@ -104,7 +104,7 @@ export function ExternalGames({ account, token, onViewGame, onBack }) {
             <button
               key={g.id}
               onClick={() => handleViewGame(g.id)}
-              className="bg-white rounded-md border border-black/[0.04] p-4 flex items-center gap-4 w-full text-left cursor-pointer hover:border-primary/20 hover:shadow-sm transition-all"
+              className="bg-surface-lowest rounded-md border border-surface-high/50 p-4 flex items-center gap-4 w-full text-left cursor-pointer hover:border-primary/20 hover:shadow-sm transition-all"
             >
               <div className="w-8 text-center text-lg">
                 {resultBadge(g.result, g.player_color)}

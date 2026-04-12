@@ -97,7 +97,7 @@ export function GameReview({ gameId, data: providedData, token, onClose, inline 
         <span className="font-display font-bold text-base text-on-surface">
           {data.game.white_name} vs {data.game.black_name}
         </span>
-        <span className="font-mono text-xs bg-[#f1f2f4] text-muted px-2.5 py-1 rounded-sm">
+        <span className="font-mono text-xs bg-surface text-muted px-2.5 py-1 rounded-sm">
           {data.game.time_control}
         </span>
         <span className="font-mono text-xs text-primary font-bold">{resultLabel}</span>
@@ -132,7 +132,7 @@ export function GameReview({ gameId, data: providedData, token, onClose, inline 
   );
 
   const moveList = (
-    <div className="bg-white rounded-md border border-black/[0.04] p-4 h-full overflow-y-auto">
+    <div className="bg-surface-lowest rounded-md border border-surface-high/50 p-4 h-full overflow-y-auto">
       {movePairs.length === 0 && (
         <p className="font-mono text-xs text-muted text-center py-4">No moves recorded</p>
       )}
@@ -149,7 +149,7 @@ export function GameReview({ gameId, data: providedData, token, onClose, inline 
         ))}
       </div>
       {resultLabel && (
-        <div className="mt-3 pt-3 border-t border-black/[0.05] text-center">
+        <div className="mt-3 pt-3 border-t border-surface-high/50 text-center">
           <span className="font-mono text-sm font-bold text-on-surface">{resultLabel}</span>
         </div>
       )}
@@ -197,7 +197,7 @@ export function GameReview({ gameId, data: providedData, token, onClose, inline 
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
       <div className="bg-surface rounded-md shadow-[0_24px_64px_rgba(0,0,0,0.2)] w-full max-w-3xl max-h-[92vh] flex flex-col overflow-hidden">
-        <div className="flex items-center justify-between px-5 py-4 bg-white border-b border-surface-high flex-shrink-0">
+        <div className="flex items-center justify-between px-5 py-4 bg-surface-lowest border-b border-surface-high flex-shrink-0">
           {gameInfo ?? <div />}
           <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full bg-surface-high hover:bg-surface-highest text-muted border-0 cursor-pointer transition-colors flex-shrink-0 ml-3">✕</button>
         </div>
@@ -206,7 +206,7 @@ export function GameReview({ gameId, data: providedData, token, onClose, inline 
         {data && (
           <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
             <div className="flex flex-col items-center gap-4 p-5 lg:flex-1 overflow-y-auto">{boardAndNav}</div>
-            <div className="lg:w-52 border-t lg:border-t-0 lg:border-l border-surface-high bg-white overflow-y-auto flex-shrink-0 p-3">{moveList}</div>
+            <div className="lg:w-52 border-t lg:border-t-0 lg:border-l border-surface-high bg-surface-lowest overflow-y-auto flex-shrink-0 p-3">{moveList}</div>
           </div>
         )}
       </div>

@@ -36,7 +36,7 @@ export function PlayerProfile({ userId, token, onClose, onViewGame }) {
       className="fixed inset-0 bg-on-surface/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
-      <div className="bg-white rounded-md shadow-[0_24px_64px_rgba(0,0,0,0.2)] w-full max-w-md max-h-[88vh] flex flex-col overflow-hidden">
+      <div className="bg-surface-lowest rounded-md shadow-[0_24px_64px_rgba(0,0,0,0.2)] w-full max-w-md max-h-[88vh] flex flex-col overflow-hidden">
 
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-5 border-b border-surface-high flex-shrink-0">

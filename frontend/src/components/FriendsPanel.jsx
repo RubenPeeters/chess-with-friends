@@ -127,7 +127,7 @@ export function FriendsPanel({ token, onChallengeAccepted }) {
 
       {/* Challenge card */}
       {challenge && (
-        <div className="flex flex-col gap-3 bg-white rounded-md p-5 border border-primary/20 shadow-[0_2px_12px_rgba(0,90,183,0.08)]">
+        <div className="flex flex-col gap-3 bg-surface-lowest rounded-md p-5 border border-primary/20 shadow-[0_2px_12px_rgba(0,90,183,0.08)]">
           {challenge.invite ? (
             <>
               <div className="flex items-center gap-2">
@@ -252,7 +252,7 @@ function SectionTitle({ children }) {
 function UserRow({ name, rating, sub, children }) {
   const initial = (name ?? '?')[0].toUpperCase();
   return (
-    <div className="flex items-center justify-between gap-3 px-4 py-3 rounded-md bg-white border border-surface-high shadow-[0_1px_4px_rgba(0,0,0,0.04)]">
+    <div className="flex items-center justify-between gap-3 px-4 py-3 rounded-md bg-surface-lowest border border-surface-high shadow-[0_1px_4px_rgba(0,0,0,0.04)]">
       {/* Mini avatar + info */}
       <div className="flex items-center gap-3 flex-1 min-w-0">
         <div className="w-9 h-9 rounded-full bg-primary-gradient text-on-primary font-display font-bold text-sm flex items-center justify-center flex-shrink-0">

@@ -50,6 +50,14 @@ export default function App() {
   const [gameId, setGameId]             = useState(null);
   const [playerColour, setPlayerColour] = useState('white');
 
+  const [isDark, setIsDark] = useState(() => document.documentElement.classList.contains('dark'));
+
+  function toggleTheme() {
+    const dark = document.documentElement.classList.toggle('dark');
+    try { localStorage.setItem('theme', dark ? 'dark' : 'light'); } catch { /* quota / private mode */ }
+    setIsDark(dark);
+  }
+
   const [authMode, setAuthMode]         = useState('login');
   const [authForm, setAuthForm]         = useState({ email: '', password: '', displayName: '' });
   const [authError, setAuthError]       = useState('');
@@ -224,7 +232,7 @@ export default function App() {
   const challengeBanner = notifications.length > 0 && (
     <div className="fixed bottom-6 right-6 flex flex-col gap-2 z-[200] max-w-sm w-full">
       {notifications.map((n) => (
-        <div key={n.id} className="flex items-center gap-3 bg-white rounded-md px-4 py-3.5 shadow-[0_8px_32px_rgba(0,0,0,0.12)] border border-surface-high">
+        <div key={n.id} className="flex items-center gap-3 bg-surface-lowest rounded-md px-4 py-3.5 shadow-[0_8px_32px_rgba(0,0,0,0.12)] border border-surface-high">
           <div className="flex flex-col gap-0.5 flex-1 min-w-0">
             <span className="font-display font-bold text-sm text-on-surface">{n.from_name} challenged you!</span>
             <span className="font-mono text-[0.7rem] text-muted">{n.time_control} · Accept to start</span>
@@ -243,14 +251,14 @@ export default function App() {
   if (!token) {
     const isRegister = authMode === 'register';
     return (
-      <div className="min-h-screen bg-white flex overflow-hidden">
+      <div className="min-h-screen bg-surface-lowest flex overflow-hidden">
 
         {/* Left — hero panel */}
         <div className="hidden lg:flex lg:w-[58%] shrink-0 relative overflow-hidden bg-[#0b1120]">
           {/* Chessboard grid texture */}
           <div className="absolute inset-0 grid grid-cols-8 opacity-[0.07] pointer-events-none" style={{ gridTemplateRows: 'repeat(8,1fr)' }}>
             {Array.from({ length: 64 }).map((_, i) => (
-              <div key={i} className={(Math.floor(i / 8) + i) % 2 === 0 ? 'bg-white' : ''} />
+              <div key={i} className={(Math.floor(i / 8) + i) % 2 === 0 ? 'bg-surface-lowest' : ''} />
             ))}
           </div>
           {/* Gradient vignette */}
@@ -263,9 +271,9 @@ export default function App() {
             <span className="font-display font-extrabold text-lg tracking-[-0.02em] text-white/80">FF</span>
 
             <div className="max-w-lg">
-              <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-sm border border-white/10 rounded-md px-4 py-1.5 mb-8">
+              <div className="inline-flex items-center gap-2 bg-surface-lowest/10 backdrop-blur-sm border border-white/10 rounded-md px-4 py-1.5 mb-8">
                 <span className="text-white/60 font-mono text-[0.65rem] uppercase tracking-[0.1em]">Glicko-2 Rated</span>
-                <span className="w-1 h-1 rounded-full bg-white/30" />
+                <span className="w-1 h-1 rounded-full bg-surface-lowest/30" />
                 <span className="text-white/60 font-mono text-[0.65rem] uppercase tracking-[0.1em]">Live Games</span>
               </div>
               <h1 className="font-display text-[3.75rem] font-extrabold leading-[1.05] tracking-[-0.03em] text-white mb-6">
@@ -281,7 +289,7 @@ export default function App() {
         </div>
 
         {/* Right — form panel */}
-        <div className="flex-1 flex flex-col items-center justify-center px-8 md:px-16 py-12 bg-white">
+        <div className="flex-1 flex flex-col items-center justify-center px-8 md:px-16 py-12 bg-surface-lowest">
           <div className="w-full max-w-[360px]">
 
             {/* Mobile logo */}
@@ -385,10 +393,10 @@ export default function App() {
     ];
 
     return (
-      <div className="min-h-screen bg-[#f1f2f4] flex">
+      <div className="min-h-screen bg-surface flex">
 
         {/* ── Sidebar ── */}
-        <aside className="w-64 fixed left-0 top-0 h-screen flex flex-col bg-[#f8f9fb] border-r border-black/[0.06] z-40">
+        <aside className="w-64 fixed left-0 top-0 h-screen flex flex-col bg-surface-low border-r border-surface-high z-40">
           {/* Brand + user */}
           <div className="px-5 pt-7 pb-5">
             <div className="flex items-center gap-2 mb-7">
@@ -428,7 +436,7 @@ export default function App() {
           </nav>
 
           {/* Sign out */}
-          <div className="px-3 pb-6 pt-3 border-t border-black/[0.06]">
+          <div className="px-3 pb-6 pt-3 border-t border-surface-high">
             <button
               onClick={handleLogout}
               className="flex items-center gap-3 py-3 px-3 rounded-md text-left w-full transition-all border-0 cursor-pointer text-muted hover:bg-black/[0.05] hover:text-danger"
@@ -443,7 +451,7 @@ export default function App() {
         <div className="ml-64 flex-1 flex flex-col min-h-screen">
 
           {/* Top header */}
-          <header className="sticky top-0 z-30 bg-[#f1f2f4]/80 backdrop-blur-xl border-b border-black/[0.06] px-10 py-4 flex items-center justify-between">
+          <header className="sticky top-0 z-30 bg-surface/80 backdrop-blur-xl border-b border-surface-high px-10 py-4 flex items-center justify-between">
             <div className="flex items-center gap-3">
               {(viewingGameId || pgnReviewData) && (
                 <button
@@ -465,15 +473,29 @@ export default function App() {
                   : null}
               </h1>
             </div>
-            {!viewingGameId && !pgnReviewData && (
+            <div className="flex items-center gap-2">
+              {/* Theme toggle */}
               <button
-                onClick={handleCreateInvite}
-                disabled={creatingInvite}
-                className="flex items-center gap-1.5 bg-primary text-on-primary rounded-md px-5 py-2.5 font-display font-bold text-sm border-0 cursor-pointer hover:opacity-90 active:scale-[0.97] transition-all shadow-lg shadow-primary/20 disabled:opacity-50"
+                onClick={toggleTheme}
+                className="w-10 h-10 flex items-center justify-center rounded-md bg-surface-high text-on-surface border-0 cursor-pointer hover:bg-surface-highest transition-colors text-sm"
+                aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+                aria-pressed={isDark}
+                title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
               >
-                <span className="text-lg leading-none">+</span> New Game
+                {/* Sun in light mode, moon in dark — CSS-driven so no React state needed */}
+                <span className="dark:hidden">🌙</span>
+                <span className="hidden dark:inline">☀️</span>
               </button>
-            )}
+              {!viewingGameId && !pgnReviewData && (
+                <button
+                  onClick={handleCreateInvite}
+                  disabled={creatingInvite}
+                  className="flex items-center gap-1.5 bg-primary text-on-primary rounded-md px-5 py-2.5 font-display font-bold text-sm border-0 cursor-pointer hover:opacity-90 active:scale-[0.97] transition-all shadow-lg shadow-primary/20 disabled:opacity-50"
+                >
+                  <span className="text-lg leading-none">+</span> New Game
+                </button>
+              )}
+            </div>
           </header>
 
           {/* Content */}
@@ -514,7 +536,7 @@ export default function App() {
               <div className="max-w-[1100px] mx-auto grid grid-cols-12 gap-6">
 
                 {/* Match card */}
-                <section className="col-span-12 lg:col-span-7 bg-white rounded-md shadow-[0_2px_16px_rgba(0,0,0,0.05)] border border-black/[0.04] p-8">
+                <section className="col-span-12 lg:col-span-7 bg-surface-lowest rounded-md shadow-[0_2px_16px_rgba(0,0,0,0.05)] border border-surface-high/50 p-8">
                   <p className="font-mono text-[0.6rem] text-muted uppercase tracking-[0.1em] mb-1">
                     {createdInvite ? 'Share with your opponent' : 'Start a game'}
                   </p>
@@ -524,7 +546,7 @@ export default function App() {
 
                   {createdInvite ? (
                     <div className="flex flex-col gap-4">
-                      <div className="flex items-center gap-3 p-4 bg-[#f1f2f4] rounded-md">
+                      <div className="flex items-center gap-3 p-4 bg-surface rounded-md">
                         <span className="font-mono text-xs text-on-surface flex-1 break-all leading-relaxed">
                           {`${location.origin}/play/${createdInvite.token}`}
                         </span>
@@ -558,7 +580,7 @@ export default function App() {
                                 'flex flex-col gap-2.5 p-4 rounded-lg text-left border-2 transition-all duration-150 cursor-pointer',
                                 active
                                   ? 'bg-primary border-primary text-on-primary shadow-md shadow-primary/20'
-                                  : 'bg-[#f1f2f4] border-transparent hover:border-primary/25 hover:bg-white',
+                                  : 'bg-surface border-transparent hover:border-primary/25 hover:bg-surface-lowest',
                               ].join(' ')}
                             >
                               <span className="text-xl leading-none">{icon}</span>
@@ -572,7 +594,7 @@ export default function App() {
                       </div>
 
                       {/* Custom TC */}
-                      <div className="flex items-center gap-3 mb-5 p-3 bg-[#f1f2f4] rounded-md">
+                      <div className="flex items-center gap-3 mb-5 p-3 bg-surface rounded-md">
                         <span className="font-mono text-[0.62rem] text-muted uppercase tracking-[0.07em] whitespace-nowrap">Custom:</span>
                         <select
                           className="flex-1 bg-transparent border-0 outline-none font-body text-sm text-on-surface cursor-pointer"
@@ -605,18 +627,18 @@ export default function App() {
                 </section>
 
                 {/* Profile ratings card */}
-                <section className="col-span-12 lg:col-span-5 bg-white rounded-md shadow-[0_2px_16px_rgba(0,0,0,0.05)] border border-black/[0.04] overflow-hidden">
+                <section className="col-span-12 lg:col-span-5 bg-surface-lowest rounded-md shadow-[0_2px_16px_rgba(0,0,0,0.05)] border border-surface-high/50 overflow-hidden">
                   <ProfilePanel token={token} user={user} />
                 </section>
 
                 {/* Join game strip */}
-                <section className="col-span-12 bg-white rounded-md shadow-[0_2px_16px_rgba(0,0,0,0.05)] border border-black/[0.04] px-8 py-6">
+                <section className="col-span-12 bg-surface-lowest rounded-md shadow-[0_2px_16px_rgba(0,0,0,0.05)] border border-surface-high/50 px-8 py-6">
                   <h2 className="font-display font-bold text-base text-on-surface mb-4">Join a game</h2>
                   <form onSubmit={handleJoin} className="flex items-end gap-3">
                     <div className="flex flex-col gap-1.5 flex-1">
                       <label className="font-mono text-[0.6rem] text-muted uppercase tracking-[0.07em]">Invite token or game ID</label>
                       <input
-                        className="px-4 py-3 bg-[#f1f2f4] rounded-md border-0 outline-none focus:ring-2 focus:ring-primary/30 font-mono text-xs text-on-surface placeholder:text-muted/50 transition-all"
+                        className="px-4 py-3 bg-surface rounded-md border-0 outline-none focus:ring-2 focus:ring-primary/30 font-mono text-xs text-on-surface placeholder:text-muted/50 transition-all"
                         placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
                         value={joinInput}
                         onChange={(e) => setJoinInput(e.target.value)}
@@ -653,7 +675,7 @@ export default function App() {
             {/* ── Analyze tab — paste a PGN ── */}
             {!viewingGameId && !pgnReviewData && lobbyTab === 'analyze' && (
               <div className="max-w-2xl mx-auto">
-                <div className="bg-white rounded-md shadow-[0_2px_16px_rgba(0,0,0,0.05)] border border-black/[0.04] p-8">
+                <div className="bg-surface-lowest rounded-md shadow-[0_2px_16px_rgba(0,0,0,0.05)] border border-surface-high/50 p-8">
                   <p className="font-mono text-[0.6rem] text-muted uppercase tracking-[0.1em] mb-1">
                     Paste a PGN
                   </p>
@@ -665,7 +687,7 @@ export default function App() {
                   </p>
                   <textarea
                     aria-labelledby="analyze-heading"
-                    className="w-full min-h-[260px] px-4 py-3 bg-[#f1f2f4] rounded-md border-0 outline-none focus:ring-2 focus:ring-primary/30 font-mono text-xs text-on-surface placeholder:text-muted/50 transition-all resize-y"
+                    className="w-full min-h-[260px] px-4 py-3 bg-surface rounded-md border-0 outline-none focus:ring-2 focus:ring-primary/30 font-mono text-xs text-on-surface placeholder:text-muted/50 transition-all resize-y"
                     placeholder={'[Event "Casual game"]\n[White "Player A"]\n[Black "Player B"]\n[Result "1-0"]\n\n1. e4 e5 2. Nf3 Nc6 3. Bb5 ...'}
                     value={pgnInput}
                     onChange={(e) => { setPgnInput(e.target.value); setPgnError(''); }}
@@ -741,7 +763,7 @@ export default function App() {
   return (
     <div className="min-h-screen bg-surface flex flex-col">
       {/* Top bar */}
-      <header className="flex items-center justify-between px-6 py-4 bg-white border-b border-surface-high">
+      <header className="flex items-center justify-between px-6 py-4 bg-surface-lowest border-b border-surface-high">
         <div className="flex items-center gap-2">
           <span className="text-lg select-none">♟</span>
           <span className="font-display font-bold text-base text-on-surface tracking-[-0.01em]">Fianchetto Friends</span>
@@ -862,7 +884,7 @@ export default function App() {
 function Overlay({ children }) {
   return (
     <div className="fixed inset-0 bg-surface-low/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-md p-8 shadow-[0_24px_64px_rgba(0,0,0,0.12)] max-w-sm w-full flex flex-col gap-2">
+      <div className="bg-surface-lowest rounded-md p-8 shadow-[0_24px_64px_rgba(0,0,0,0.12)] max-w-sm w-full flex flex-col gap-2">
         {children}
       </div>
     </div>

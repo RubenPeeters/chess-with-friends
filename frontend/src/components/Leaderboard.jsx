@@ -24,7 +24,7 @@ export function Leaderboard({ token, onClose, onViewProfile, inline = false }) {
   }, [type, token]);
 
   const typeSelector = (
-    <div className="flex gap-1.5 p-1.5 bg-[#f1f2f4] rounded-md w-fit">
+    <div className="flex gap-1.5 p-1.5 bg-surface rounded-md w-fit">
       {TYPES.map((t) => (
         <button
           key={t.key}
@@ -32,7 +32,7 @@ export function Leaderboard({ token, onClose, onViewProfile, inline = false }) {
           className={[
             'flex items-center gap-1.5 font-body text-sm px-4 py-2 rounded-md border-0 cursor-pointer transition-all',
             type === t.key
-              ? 'bg-white text-on-surface font-semibold shadow-sm'
+              ? 'bg-surface-lowest text-on-surface font-semibold shadow-sm'
               : 'bg-transparent text-muted hover:text-on-surface',
           ].join(' ')}
         >
@@ -44,7 +44,7 @@ export function Leaderboard({ token, onClose, onViewProfile, inline = false }) {
   );
 
   const table = (
-    <div className="bg-white rounded-md border border-black/[0.04] overflow-hidden mt-5">
+    <div className="bg-surface-lowest rounded-md border border-surface-high/50 overflow-hidden mt-5">
       {loading && (
         <div className="flex items-center justify-center py-12">
           <p className="font-body text-sm text-muted">Loading…</p>
@@ -63,7 +63,7 @@ export function Leaderboard({ token, onClose, onViewProfile, inline = false }) {
       {data && data.players.length > 0 && (
         <table className="w-full">
           <thead>
-            <tr className="border-b border-black/[0.05]">
+            <tr className="border-b border-surface-high/50">
               <th className="font-mono text-[0.62rem] text-muted uppercase tracking-[0.07em] text-left px-6 py-4 w-12">#</th>
               <th className="font-mono text-[0.62rem] text-muted uppercase tracking-[0.07em] text-left px-2 py-4">Player</th>
               <th className="font-mono text-[0.62rem] text-muted uppercase tracking-[0.07em] text-right px-6 py-4">Rating</th>
@@ -71,7 +71,7 @@ export function Leaderboard({ token, onClose, onViewProfile, inline = false }) {
           </thead>
           <tbody>
             {data.players.map((p, i) => (
-              <tr key={p.id} className="border-b border-black/[0.04] last:border-0 hover:bg-[#f8f9fb] transition-colors">
+              <tr key={p.id} className="border-b border-surface-high/50 last:border-0 hover:bg-surface-low transition-colors">
                 <td className="px-6 py-4 text-center">
                   {i < 3
                     ? <span className="text-lg leading-none">{MEDALS[i]}</span>
@@ -114,11 +114,11 @@ export function Leaderboard({ token, onClose, onViewProfile, inline = false }) {
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
       <div className="bg-surface rounded-md shadow-[0_24px_64px_rgba(0,0,0,0.2)] w-full max-w-md max-h-[88vh] flex flex-col overflow-hidden">
-        <div className="flex items-center justify-between px-5 py-4 bg-white border-b border-surface-high flex-shrink-0">
+        <div className="flex items-center justify-between px-5 py-4 bg-surface-lowest border-b border-surface-high flex-shrink-0">
           <span className="font-display font-bold text-base text-on-surface">Leaderboard</span>
           <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full bg-surface-high hover:bg-surface-highest text-muted border-0 cursor-pointer transition-colors">✕</button>
         </div>
-        <div className="p-4 bg-white border-b border-surface-high flex-shrink-0">
+        <div className="p-4 bg-surface-lowest border-b border-surface-high flex-shrink-0">
           {typeSelector}
         </div>
         <div className="flex-1 overflow-y-auto p-4">{table}</div>

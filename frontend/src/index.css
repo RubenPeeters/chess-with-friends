@@ -51,6 +51,35 @@
   --radius-lg: 0.75rem;
 }
 
+/* ── Dark mode ────────────────────────────────────────────────────────────
+   Class-based (.dark on <html>) so users can override system preference.
+   The toggle in the UI reads/writes localStorage('theme') and falls back
+   to prefers-color-scheme on first visit.                                 */
+.dark {
+  --color-primary:        #4d9eff;
+  --color-primary-end:    #60b0ff;
+  --color-on-primary:     #ffffff;
+
+  --color-surface-lowest:   #14161a;
+  --color-surface:          #1a1d21;
+  --color-surface-low:      #1e2126;
+  --color-surface-high:     #2a2e35;
+  --color-surface-highest:  #353a42;
+
+  --color-on-surface:     #e6e8ec;
+  --color-muted:          #8b9099;
+
+  --color-secondary-fixed: #2a3340;
+  --color-danger:          #ef4444;
+  --color-danger-bg:       #3b1111;
+  --color-success:         #4ade80;
+  --color-success-bg:      #0a2e1a;
+
+  --shadow-ambient: 0 8px 32px rgba(0, 0, 0, 0.2);
+  --shadow-raised:  0 12px 40px rgba(0, 0, 0, 0.3);
+  --shadow-float:   0 8px 40px rgba(0, 0, 0, 0.3);
+}
+
 /* ── Base reset ──────────────────────────────────────────────────────────── */
 @layer base {
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -79,7 +108,7 @@
 /* ── Custom utilities ────────────────────────────────────────────────────── */
 /* In Tailwind v4, @utility registers classes usable in JSX and with @apply  */
 @utility bg-primary-gradient {
-  background: linear-gradient(135deg, #005ab7, #0072e5);
+  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-end));
 }
 
 @utility nums-tabular {

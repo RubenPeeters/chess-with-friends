@@ -25,7 +25,7 @@ export function Board({ fen, playerColour, onMove, gameOver, animated = true, ma
 
   return (
     <div
-      className="bg-white rounded-md p-3 shadow-[0_8px_40px_rgba(0,0,0,0.10)] w-full border border-surface-high"
+      className="bg-surface-lowest rounded-md p-3 shadow-[0_8px_40px_rgba(0,0,0,0.10)] w-full border border-surface-high"
       style={{ maxWidth }}
     >
       <Chessboard
