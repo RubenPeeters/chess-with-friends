@@ -69,4 +69,49 @@ router.get('/:userId', async (req, res) => {
   }
 });
 
+// ── GET /users/:userId/rating-history — rating history for charts ────────────
+router.get('/:userId/rating-history', async (req, res) => {
+  const type = ['bullet', 'blitz', 'rapid', 'classical'].includes(req.query.game_type)
+    ? req.query.game_type
+    : null;
+  const limit = Math.min(200, Math.max(1, parseInt(req.query.limit, 10) || 100));
+
+  try {
+    // If game_type is specified, return only that type. Otherwise return all
+    // types so the frontend can render multiple lines or a tab per type.
+    const { rows } = type
+      ? await pool.query(
+          `SELECT rating, rd, game_type, recorded_at
+           FROM rating_history
+           WHERE user_id = $1 AND game_type = $2
+           ORDER BY recorded_at ASC
+           LIMIT $3`,
+          [req.params.userId, type, limit]
+        )
+      : await pool.query(
+          `SELECT rating, rd, game_type, recorded_at
+           FROM rating_history
+           WHERE user_id = $1
+           ORDER BY recorded_at ASC
+           LIMIT $2`,
+          [req.params.userId, limit]
+        );
+
+    // Group by game_type so the frontend can render one line per type.
+    const byType = {};
+    for (const row of rows) {
+      (byType[row.game_type] ??= []).push({
+        rating: Number(row.rating),
+        rd: Number(row.rd),
+        recorded_at: row.recorded_at,
+      });
+    }
+
+    res.json(byType);
+  } catch (err) {
+    console.error('[users] rating-history error:', err.message);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 export default router;
