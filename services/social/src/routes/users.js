@@ -69,9 +69,11 @@ router.get('/:userId', async (req, res) => {
   }
 });
 
+const GAME_TYPES = ['bullet', 'blitz', 'rapid', 'classical'];
+
 // ── GET /users/:userId/rating-history — rating history for charts ────────────
 router.get('/:userId/rating-history', async (req, res) => {
-  const type = ['bullet', 'blitz', 'rapid', 'classical'].includes(req.query.game_type)
+  const type = GAME_TYPES.includes(req.query.game_type)
     ? req.query.game_type
     : null;
   const parsedLimit = parseInt(req.query.limit, 10);
@@ -105,9 +107,11 @@ router.get('/:userId/rating-history', async (req, res) => {
           [req.params.userId, limit]
         );
 
-    // Group by game_type so the frontend can render one line per type.
+    // Group by game_type, dropping any stray values that aren't in the
+    // supported set (the DB column is plain TEXT with no CHECK constraint).
     const byType = {};
     for (const row of rows) {
+      if (!GAME_TYPES.includes(row.game_type)) continue;
       (byType[row.game_type] ??= []).push({
         rating: Number(row.rating),
         rd: Number(row.rd),
