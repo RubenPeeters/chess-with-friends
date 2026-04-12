@@ -4,6 +4,7 @@ import { EvalBar } from './EvalBar.jsx';
 import { apiFetch } from '../api.js';
 import { identifyOpening } from '../utils/openings.js';
 import { useStockfish } from '../hooks/useStockfish.js';
+import { useGameAnalysis } from '../hooks/useGameAnalysis.js';
 
 /**
  * Render a finished game (or precomputed game data) with a review board, eval
@@ -26,6 +27,7 @@ export function GameReview({ gameId, data: providedData, token, onClose, inline 
   const [loading, setLoading] = useState(!providedData);
   const [error, setError]     = useState('');
   const { analyze, evaluation, ready: sfReady } = useStockfish();
+  const { annotations, summary, progress, isAnalyzing } = useGameAnalysis(inline ? data?.moves : null);
 
   useEffect(() => {
     setCursor(0);
@@ -131,8 +133,52 @@ export function GameReview({ gameId, data: providedData, token, onClose, inline 
     </div>
   );
 
+  // Key moments — moves classified as inaccuracy or worse, for the summary panel.
+  const keyMoments = annotations
+    .map((a, i) => a && a.classification !== 'good' ? { moveIdx: i, ...a } : null)
+    .filter(Boolean);
+
   const moveList = (
     <div className="bg-white rounded-md border border-black/[0.04] p-4 h-full overflow-y-auto">
+      {/* Analysis progress / summary */}
+      {inline && (isAnalyzing || annotations.some(Boolean)) && (
+        <div className="mb-3 pb-3 border-b border-black/[0.05]">
+          {isAnalyzing && (
+            <div className="flex items-center gap-2 mb-2">
+              <div className="w-full h-1.5 bg-surface-high rounded-sm overflow-hidden">
+                <div
+                  className="h-full bg-primary transition-all duration-300"
+                  style={{ width: `${progress.total > 0 ? (progress.done / progress.total) * 100 : 0}%` }}
+                />
+              </div>
+              <span className="font-mono text-[0.6rem] text-muted whitespace-nowrap">
+                {progress.done}/{progress.total}
+              </span>
+            </div>
+          )}
+          {!isAnalyzing && annotations.some(Boolean) && (
+            <div className="flex gap-4 text-[0.65rem] font-mono">
+              <div className="flex flex-col gap-0.5">
+                <span className="text-muted uppercase tracking-wider text-[0.5rem]">White</span>
+                <span>
+                  <span className="text-yellow-600">{summary.white.inaccuracies}?!</span>{' '}
+                  <span className="text-orange-600">{summary.white.mistakes}?</span>{' '}
+                  <span className="text-danger">{summary.white.blunders}??</span>
+                </span>
+              </div>
+              <div className="flex flex-col gap-0.5">
+                <span className="text-muted uppercase tracking-wider text-[0.5rem]">Black</span>
+                <span>
+                  <span className="text-yellow-600">{summary.black.inaccuracies}?!</span>{' '}
+                  <span className="text-orange-600">{summary.black.mistakes}?</span>{' '}
+                  <span className="text-danger">{summary.black.blunders}??</span>
+                </span>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       {movePairs.length === 0 && (
         <p className="font-mono text-xs text-muted text-center py-4">No moves recorded</p>
       )}
@@ -140,9 +186,19 @@ export function GameReview({ gameId, data: providedData, token, onClose, inline 
         {movePairs.map((pair, pairIdx) => (
           <div key={pairIdx} className="contents">
             <span className="font-mono text-[0.68rem] text-muted self-center text-right leading-tight py-0.5">{pairIdx + 1}.</span>
-            <MoveChip san={pair[0].san} active={cursor === pairIdx * 2 + 1} onClick={() => setCursor(pairIdx * 2 + 1)} />
+            <MoveChip
+              san={pair[0].san}
+              active={cursor === pairIdx * 2 + 1}
+              onClick={() => setCursor(pairIdx * 2 + 1)}
+              classification={annotations[pairIdx * 2]?.classification}
+            />
             {pair[1]
-              ? <MoveChip san={pair[1].san} active={cursor === pairIdx * 2 + 2} onClick={() => setCursor(pairIdx * 2 + 2)} />
+              ? <MoveChip
+                  san={pair[1].san}
+                  active={cursor === pairIdx * 2 + 2}
+                  onClick={() => setCursor(pairIdx * 2 + 2)}
+                  classification={annotations[pairIdx * 2 + 1]?.classification}
+                />
               : <span />
             }
           </div>
@@ -151,6 +207,36 @@ export function GameReview({ gameId, data: providedData, token, onClose, inline 
       {resultLabel && (
         <div className="mt-3 pt-3 border-t border-black/[0.05] text-center">
           <span className="font-mono text-sm font-bold text-on-surface">{resultLabel}</span>
+        </div>
+      )}
+
+      {/* Key moments */}
+      {keyMoments.length > 0 && !isAnalyzing && (
+        <div className="mt-3 pt-3 border-t border-black/[0.05]">
+          <p className="font-mono text-[0.55rem] text-muted uppercase tracking-wider mb-2">Key moments</p>
+          <div className="flex flex-col gap-1">
+            {keyMoments.map((km) => {
+              const moveNum = Math.floor(km.moveIdx / 2) + 1;
+              const isWhite = km.moveIdx % 2 === 0;
+              const label = isWhite ? `${moveNum}. ${data.moves[km.moveIdx].san}` : `${moveNum}... ${data.moves[km.moveIdx].san}`;
+              const evalStr = km.eval
+                ? km.eval.mate !== null
+                  ? `M${Math.abs(km.eval.mate)}`
+                  : (km.eval.cp >= 0 ? '+' : '') + (km.eval.cp / 100).toFixed(1)
+                : '';
+              return (
+                <button
+                  key={km.moveIdx}
+                  onClick={() => setCursor(km.moveIdx + 1)}
+                  className="flex items-center gap-2 text-left bg-transparent border-0 cursor-pointer hover:bg-surface-high rounded-sm px-1.5 py-1 transition-colors"
+                >
+                  <ClassificationBadge cls={km.classification} />
+                  <span className="font-mono text-[0.68rem] text-on-surface">{label}</span>
+                  <span className="font-mono text-[0.6rem] text-muted ml-auto">{evalStr}</span>
+                </button>
+              );
+            })}
+          </div>
         </div>
       )}
     </div>
@@ -227,18 +313,49 @@ function NavBtn({ children, onClick, disabled, title }) {
   );
 }
 
-function MoveChip({ san, active, onClick }) {
+const CLS_COLORS = {
+  inaccuracy: 'text-yellow-600',
+  mistake:    'text-orange-600',
+  blunder:    'text-danger',
+};
+const CLS_SYMBOLS = {
+  inaccuracy: '?!',
+  mistake:    '?',
+  blunder:    '??',
+};
+const CLS_BG = {
+  inaccuracy: 'bg-yellow-100',
+  mistake:    'bg-orange-100',
+  blunder:    'bg-red-100',
+};
+
+function ClassificationBadge({ cls }) {
+  if (!cls || cls === 'good') return null;
+  return (
+    <span className={`font-mono text-[0.6rem] font-bold ${CLS_COLORS[cls]}`}>
+      {CLS_SYMBOLS[cls]}
+    </span>
+  );
+}
+
+function MoveChip({ san, active, onClick, classification }) {
+  const hasBadge = classification && classification !== 'good';
   return (
     <button
       onClick={onClick}
       className={[
-        'font-mono text-[0.78rem] px-1.5 py-0.5 rounded text-left border-0 cursor-pointer transition-colors w-full truncate',
-        active
-          ? 'bg-primary text-on-primary font-semibold'
-          : 'bg-transparent text-on-surface hover:bg-surface-high',
+        'font-mono text-[0.78rem] px-1.5 py-0.5 rounded text-left border-0 cursor-pointer transition-colors w-full truncate flex items-center gap-1',
+        active && hasBadge
+          ? `${CLS_BG[classification]} ring-2 ring-primary font-semibold`
+          : active
+            ? 'bg-primary text-on-primary font-semibold'
+            : hasBadge
+              ? `${CLS_BG[classification]} text-on-surface hover:opacity-80`
+              : 'bg-transparent text-on-surface hover:bg-surface-high',
       ].join(' ')}
     >
       {san}
+      <ClassificationBadge cls={classification} />
     </button>
   );
 }
