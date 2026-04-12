@@ -40,7 +40,7 @@ export function EvalBar({ evaluation, orientation = 'white' }) {
       {/* Bar — owns the full stretched height. Depth badge and eval label
           are absolutely positioned inside so they don't eat into the bar's
           height (which must match the board exactly). */}
-      <div className="relative w-full h-full rounded-sm overflow-hidden flex flex-col border border-black/10">
+      <div className="relative w-full h-full rounded-sm overflow-hidden flex flex-col border border-surface-high">
         {/* Top portion (black's side) */}
         <div
           className="bg-[#1c1c1c] transition-all duration-300 ease-out"

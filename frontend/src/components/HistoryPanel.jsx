@@ -70,7 +70,7 @@ export function HistoryPanel({ token, userId, onViewGame, onViewProfile }) {
           <div
             key={g.id}
             onClick={() => onViewGame?.(g.id)}
-            className="flex items-stretch rounded-md bg-white border border-surface-high overflow-hidden shadow-[0_1px_4px_rgba(0,0,0,0.05)] cursor-pointer hover:border-primary/30 hover:shadow-[0_2px_12px_rgba(0,90,183,0.08)] transition-all"
+            className="flex items-stretch rounded-md bg-surface-lowest border border-surface-high overflow-hidden shadow-[0_1px_4px_rgba(0,0,0,0.05)] cursor-pointer hover:border-primary/30 hover:shadow-[0_2px_12px_rgba(0,90,183,0.08)] transition-all"
           >
             {/* Left accent bar */}
             <div className={`w-1 flex-shrink-0 ${outcomeConfig.bar} opacity-80`} />

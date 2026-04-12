@@ -90,14 +90,14 @@ export function ExternalAccounts({ token, onSelectAccount }) {
   return (
     <div className="flex flex-col gap-6">
       {/* Link form */}
-      <div className="bg-white rounded-md border border-black/[0.04] p-6">
+      <div className="bg-surface-lowest rounded-md border border-surface-high/50 p-6">
         <h3 className="font-display font-bold text-base text-on-surface mb-4">Link an account</h3>
         <form onSubmit={handleLink} className="flex items-end gap-3">
           <div className="flex flex-col gap-1.5">
             <label htmlFor="ext-platform" className="font-mono text-[0.6rem] text-muted uppercase tracking-[0.07em]">Platform</label>
             <select
               id="ext-platform"
-              className="px-3 py-2.5 bg-[#f1f2f4] rounded-md border-0 outline-none font-body text-sm text-on-surface cursor-pointer"
+              className="px-3 py-2.5 bg-surface rounded-md border-0 outline-none font-body text-sm text-on-surface cursor-pointer"
               value={platform}
               onChange={(e) => setPlatform(e.target.value)}
             >
@@ -110,7 +110,7 @@ export function ExternalAccounts({ token, onSelectAccount }) {
             <label htmlFor="ext-username" className="font-mono text-[0.6rem] text-muted uppercase tracking-[0.07em]">Username</label>
             <input
               id="ext-username"
-              className="px-4 py-2.5 bg-[#f1f2f4] rounded-md border-0 outline-none focus:ring-2 focus:ring-primary/30 font-mono text-xs text-on-surface placeholder:text-muted/50 transition-all"
+              className="px-4 py-2.5 bg-surface rounded-md border-0 outline-none focus:ring-2 focus:ring-primary/30 font-mono text-xs text-on-surface placeholder:text-muted/50 transition-all"
               placeholder="e.g. DrNykterstein"
               value={username}
               onChange={(e) => { setUsername(e.target.value); setLinkError(''); }}
@@ -150,7 +150,7 @@ export function ExternalAccounts({ token, onSelectAccount }) {
             const isSyncing = syncing === acct.id;
             const result = syncResult?.id === acct.id ? syncResult : null;
             return (
-              <div key={acct.id} className="bg-white rounded-md border border-black/[0.04] p-5 flex items-center gap-4">
+              <div key={acct.id} className="bg-surface-lowest rounded-md border border-surface-high/50 p-5 flex items-center gap-4">
                 <span className="text-2xl">{platformInfo?.icon ?? '?'}</span>
                 <div className="flex-1 min-w-0">
                   <p className="font-display font-bold text-sm text-on-surface">{acct.username}</p>

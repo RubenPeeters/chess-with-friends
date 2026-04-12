@@ -142,7 +142,7 @@ export function OpeningTree({ accountId, token }) {
                     <button
                       key={m.move}
                       onClick={() => drillDown(m.move)}
-                      className="flex items-center gap-3 p-3 bg-white rounded-md border border-black/[0.04] hover:border-primary/20 hover:shadow-sm transition-all cursor-pointer w-full text-left"
+                      className="flex items-center gap-3 p-3 bg-surface-lowest rounded-md border border-surface-high/50 hover:border-primary/20 hover:shadow-sm transition-all cursor-pointer w-full text-left"
                     >
                       {/* Move */}
                       <span className="font-mono text-sm font-bold text-on-surface w-14 flex-shrink-0">
