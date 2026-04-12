@@ -4,6 +4,13 @@ on:
   push:
     branches: [main]
 
+# Only one deploy at a time. Queued runs wait for the running one to finish
+# (don't cancel) so no commit's deploy gets silently dropped. This also
+# prevents two migration runs from racing on the same database.
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
 jobs:
   deploy:
     name: Deploy to VPS
@@ -26,8 +33,31 @@ jobs:
             echo "→ Rebuilding images"
             docker compose build --no-cache
 
-            echo "→ Restarting services"
+            echo "→ Stopping services"
             docker compose down
+
+            echo "→ Starting postgres + redis first (for migrations)"
+            docker compose up -d postgres redis
+
+            echo "→ Waiting for postgres to be ready"
+            pg_ready=0
+            for i in 1 2 3 4 5 6 7 8 9 10; do
+              if docker compose exec -T postgres pg_isready -U chess -d chess >/dev/null 2>&1; then
+                pg_ready=1
+                break
+              fi
+              sleep 3
+            done
+            if [ "$pg_ready" != "1" ]; then
+              echo "✗ postgres did not become ready within 30s — aborting deploy"
+              docker compose logs postgres --tail=50
+              exit 1
+            fi
+
+            echo "→ Applying database migrations"
+            make migrate
+
+            echo "→ Starting all services"
             docker compose up -d
 
             echo "→ Waiting for health checks"

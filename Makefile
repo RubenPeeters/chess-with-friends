@@ -40,12 +40,13 @@ ps:
 
 # ── Database ──────────────────────────────────────────────────────────────────
 
-## Apply all migrations in order
+## Apply any pending migrations. Idempotent — tracks applied files in the
+## `_migrations` table, so it's safe to run on every deploy. flock prevents
+## concurrent runs on the same host (e.g. a manual `make migrate` kicking off
+## while the deploy workflow is also running). The GitHub Actions
+## `concurrency: deploy` group serialises deploys themselves.
 migrate:
-	@for f in db/migrations/*.sql; do \
-		echo "→ applying $$f"; \
-		docker compose exec -T postgres psql -U chess -d chess -f /docker-entrypoint-initdb.d/$$(basename $$f); \
-	done
+	@flock /tmp/chess-with-friends.migrate.lock ./db/migrate.sh
 
 # ── Frontend dev server ───────────────────────────────────────────────────────
 
