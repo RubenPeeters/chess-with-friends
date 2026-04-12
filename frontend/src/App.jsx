@@ -54,7 +54,7 @@ export default function App() {
 
   function toggleTheme() {
     const dark = document.documentElement.classList.toggle('dark');
-    localStorage.setItem('theme', dark ? 'dark' : 'light');
+    try { localStorage.setItem('theme', dark ? 'dark' : 'light'); } catch { /* quota / private mode */ }
     setIsDark(dark);
   }
 
