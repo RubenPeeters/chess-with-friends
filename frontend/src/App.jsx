@@ -67,6 +67,15 @@ export default function App() {
   const [copied, setCopied]                 = useState(false);
   const [drawOfferDismissed, setDrawOfferDismissed] = useState(null);
   const [sidebarOpen, setSidebarOpen]               = useState(false);
+
+  // Close mobile drawer on Escape
+  useEffect(() => {
+    if (!sidebarOpen) return;
+    function onKey(e) { if (e.key === 'Escape') setSidebarOpen(false); }
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [sidebarOpen]);
+
   const [viewingGameId, setViewingGameId]           = useState(null);
   const [viewingPlayerId, setViewingPlayerId]       = useState(null);
   const [pgnInput, setPgnInput]                     = useState('');
@@ -393,6 +402,7 @@ export default function App() {
           <div
             className="fixed inset-0 bg-black/30 z-30 lg:hidden"
             onClick={() => setSidebarOpen(false)}
+            onKeyDown={(e) => { if (e.key === 'Escape') setSidebarOpen(false); }}
           />
         )}
 
@@ -402,7 +412,6 @@ export default function App() {
             'w-64 fixed left-0 top-0 h-screen flex flex-col bg-[#f8f9fb] border-r border-black/[0.06] z-40 transition-transform duration-200',
             sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0',
           ].join(' ')}
-          aria-hidden={!sidebarOpen ? 'true' : undefined}
         >
           {/* Brand + user */}
           <div className="px-5 pt-7 pb-5">
