@@ -74,26 +74,33 @@ router.get('/:userId/rating-history', async (req, res) => {
   const type = ['bullet', 'blitz', 'rapid', 'classical'].includes(req.query.game_type)
     ? req.query.game_type
     : null;
-  const limit = Math.min(200, Math.max(1, parseInt(req.query.limit, 10) || 100));
+  const parsedLimit = parseInt(req.query.limit, 10);
+  const limit = Math.min(200, Math.max(1, Number.isFinite(parsedLimit) ? parsedLimit : 100));
 
   try {
-    // If game_type is specified, return only that type. Otherwise return all
-    // types so the frontend can render multiple lines or a tab per type.
+    // Fetch the most recent `limit` entries per type, then reverse so the
+    // frontend receives them in chronological order (oldest → newest) for
+    // charting. The subquery + reverse avoids a full ASC sort that would
+    // return the *oldest* entries when the user has more than `limit` games.
     const { rows } = type
       ? await pool.query(
-          `SELECT rating, rd, game_type, recorded_at
-           FROM rating_history
-           WHERE user_id = $1 AND game_type = $2
-           ORDER BY recorded_at ASC
-           LIMIT $3`,
+          `SELECT * FROM (
+             SELECT rating, rd, game_type, recorded_at
+             FROM rating_history
+             WHERE user_id = $1 AND game_type = $2
+             ORDER BY recorded_at DESC
+             LIMIT $3
+           ) sub ORDER BY recorded_at ASC`,
           [req.params.userId, type, limit]
         )
       : await pool.query(
-          `SELECT rating, rd, game_type, recorded_at
-           FROM rating_history
-           WHERE user_id = $1
-           ORDER BY recorded_at ASC
-           LIMIT $2`,
+          `SELECT * FROM (
+             SELECT rating, rd, game_type, recorded_at
+             FROM rating_history
+             WHERE user_id = $1
+             ORDER BY recorded_at DESC
+             LIMIT $2
+           ) sub ORDER BY recorded_at ASC`,
           [req.params.userId, limit]
         );
 

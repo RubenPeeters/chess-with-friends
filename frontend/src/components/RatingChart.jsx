@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { apiFetch } from '../api.js';
 
 const GAME_TYPES = ['bullet', 'blitz', 'rapid', 'classical'];
@@ -22,21 +22,25 @@ const PLOT_H = SVG_H - PAD.top - PAD.bottom;
 export function RatingChart({ userId, token }) {
   const [data, setData]         = useState(null);
   const [loading, setLoading]   = useState(true);
+  const [error, setError]       = useState('');
   const [activeType, setActiveType] = useState(null);
   const [hoverIdx, setHoverIdx] = useState(null);
+  const fetchIdRef = useRef(0);
 
   const fetchData = useCallback(async () => {
-    setLoading(true);
+    const id = ++fetchIdRef.current;
+    setLoading(true); setError('');
     try {
       const result = await apiFetch(`/api/social/users/${userId}/rating-history`, { token });
+      if (id !== fetchIdRef.current) return; // stale response
       setData(result);
-      // Default to the type with the most data points
       const best = Object.entries(result).sort((a, b) => b[1].length - a[1].length)[0];
       if (best) setActiveType(best[0]);
     } catch (err) {
-      console.error('[rating-chart] fetch error:', err.message);
+      if (id !== fetchIdRef.current) return;
+      setError(err.message);
     } finally {
-      setLoading(false);
+      if (id === fetchIdRef.current) setLoading(false);
     }
   }, [userId, token]);
 
@@ -73,6 +77,7 @@ export function RatingChart({ userId, token }) {
   }, [minR, maxR]);
 
   if (loading) return <p className="font-body text-sm text-muted text-center py-6">Loading chart…</p>;
+  if (error) return <p className="font-mono text-xs text-danger text-center py-6">{error}</p>;
   if (!data || Object.keys(data).length === 0) {
     return <p className="font-body text-sm text-muted text-center py-6">Play some rated games to see your history.</p>;
   }
